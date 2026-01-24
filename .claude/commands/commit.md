@@ -1,0 +1,1 @@
+cd 到 hpc-ui 这个项目，然后commit最新的改动，解决commit hock中的lint错误,并rebase main，

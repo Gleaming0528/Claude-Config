@@ -1,0 +1,8 @@
+# 忽略所有文件和目录
+/*
+
+# 但保留以下内容
+!CLAUDE.md
+!.claude/
+!.claude/**
+!.gitignore
