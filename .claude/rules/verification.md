@@ -1,41 +1,37 @@
-# 完成前验证
+# Verification Before Completion
 
-## 铁律：没跑过验证命令，不能说"完成了"
+## Iron Law: No completion claims without fresh verification evidence
 
-任何声明完成、修复、通过之前，必须提供新鲜的验证证据。
+Before claiming ANY work is complete, fixed, or passing:
 
-## 强制流程
+1. **Identify** — What command proves this claim?
+2. **Run** — Execute the FULL command (fresh, complete)
+3. **Read** — Full output, check exit code, count failures
+4. **Verify** — Does output confirm the claim?
+   - No → State actual status with evidence
+   - Yes → State claim WITH evidence
 
-每次声明工作状态前：
-1. 确定：什么命令能证明这个声明？
-2. 执行：跑完整命令（新鲜的，完整的）
-3. 阅读：完整输出，检查退出码，统计失败数
-4. 确认：输出是否支撑声明？
-   - 不支撑 → 报告实际状态 + 证据
-   - 支撑 → 带着证据声明结果
+Skip any step = false claim.
 
-跳过任何一步 = 虚假声明。
+## Forbidden Phrases (without verification evidence)
 
-## 禁止用语
+- "Should work now"
+- "Looks correct"
+- "Should be fine"
+- "Done"
+- Any wording implying success without having run verification
 
-在没有验证证据的情况下，禁止使用：
-- "应该没问题了"
-- "大概可以"
-- "看起来对了"
-- "搞定了"
-- 任何暗示成功的表述
+## Verification Independence
 
-## 验证独立性
+| Claim | Required Evidence | Not Sufficient |
+|-------|------------------|----------------|
+| Tests pass | Test command output: 0 failures | Previous run, "should pass" |
+| Build succeeds | Build command: exit 0 | Linter passing |
+| Bug fixed | Original symptom test passes | Code changed, assumed fixed |
+| Lint clean | Linter output: 0 errors | Partial check |
 
-| 声明 | 需要的证据 | 不充分的证据 |
-|------|-----------|-------------|
-| 测试通过 | 测试命令输出：0 failures | 上次的结果、"应该能过" |
-| 构建成功 | 构建命令：exit 0 | linter 通过 |
-| Bug 已修 | 原始症状测试通过 | 改了代码就算修了 |
-| Lint 干净 | linter 输出：0 errors | 部分检查 |
+## Key Principles
 
-## 关键原则
-
-- linter 通过 ≠ 编译通过 ≠ 测试通过，三者独立验证
-- Agent/子代理报告成功 → 必须独立验证，不能直接信任
-- 信心 ≠ 证据，疲惫 ≠ 借口
+- linter pass ≠ build pass ≠ test pass — verify each independently
+- Agent/subagent reports success → must verify independently, never trust blindly
+- Confidence ≠ evidence, exhaustion ≠ excuse

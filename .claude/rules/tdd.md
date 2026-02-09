@@ -1,33 +1,33 @@
-# TDD 约束
+# TDD Constraints
 
-## 铁律：没有失败测试就不能写生产代码
+## Iron Law: No production code without a failing test first
 
-## 核心规则
+## Core Rules
 
-- 先写测试，看它失败，再写最小实现让它通过
-- 先写了代码再补测试？删掉代码，从测试重新开始
-- 每个测试只测一个行为，名字要能说清意图
-- 测试通过后只写最小实现，不多加功能（YAGNI）
-- Bug 修复必须先写复现测试，再修代码
+- Write test first, watch it fail, then write minimal code to pass
+- Wrote code before test? Delete the code, start over from test
+- Each test covers one behavior, name must describe intent clearly
+- After test passes, write only the minimal implementation (YAGNI)
+- Bug fixes must start with a reproduction test, then fix the code
 
-## 红-绿-重构循环
+## Red-Green-Refactor Cycle
 
-1. RED — 写一个失败测试，运行确认它失败（且失败原因正确）
-2. GREEN — 写最少的代码让测试通过
-3. REFACTOR — 在保持测试绿色的前提下清理代码
+1. **RED** — Write one failing test, run it, confirm it fails for the right reason
+2. **GREEN** — Write the least code to make the test pass
+3. **REFACTOR** — Clean up while keeping tests green
 
-## 常见借口 vs 现实
+## Common Excuses vs Reality
 
-| 借口 | 现实 |
-|------|------|
-| "太简单不需要测" | 简单代码也会坏，测试只花 30 秒 |
-| "写完再补测试" | 事后测试立刻通过，证明不了任何事 |
-| "手动测过了" | 临时的 ≠ 系统的，没记录，不可重跑 |
-| "TDD 太慢了" | TDD 比事后 debug 快，务实 = 先测试 |
-| "先探索一下" | 可以探索，但丢掉探索代码，从 TDD 开始正式实现 |
+| Excuse | Reality |
+|--------|---------|
+| "Too simple to test" | Simple code breaks too. Test takes 30 seconds. |
+| "I'll test after" | Tests-after pass immediately, proving nothing. |
+| "Already manually tested" | Ad-hoc ≠ systematic. No record, can't re-run. |
+| "TDD is too slow" | TDD is faster than debugging. Pragmatic = test-first. |
+| "Need to explore first" | Fine. Throw away exploration, start fresh with TDD. |
 
-## 例外（需要用户明确同意）
+## Exceptions (require explicit user consent)
 
-- 一次性原型
-- 生成代码
-- 配置文件
+- Throwaway prototypes
+- Generated code
+- Configuration files
