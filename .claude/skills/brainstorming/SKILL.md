@@ -1,52 +1,52 @@
 ---
 name: brainstorming
-description: 当需要在写代码前澄清需求和设计方案时使用。触发词包括：新功能、需求讨论、方案设计、功能规划、技术选型、怎么实现。通过协作对话将模糊想法变成清晰设计。
+description: Use when needing to clarify requirements and design approaches before writing code. Trigger words include new feature, requirements, design discussion, solution design, feature planning, how to implement, tech decision.
 ---
 
-# 需求澄清与方案设计
+# Brainstorming Ideas Into Designs
 
-## 概述
+## Overview
 
-在写代码之前，先把需求想清楚、方案定清楚。
+Turn ideas into fully formed designs through collaborative dialogue before writing any code.
 
-**核心原则：** 一次只问一个问题，逐步逼近清晰的设计。
+**Core principle:** One question at a time, incrementally converge on a clear design.
 
-## 流程
+## The Process
 
-### 理解想法
+### Understanding the Idea
 
-1. 先查看项目当前状态（文件、文档、最近提交）
-2. 每次只问一个问题来深化理解
-3. 优先用选择题（比开放式问题更容易回答）
-4. 聚焦于：目的、约束、成功标准
+1. Check current project state (files, docs, recent commits)
+2. Ask questions **one at a time** to refine the idea
+3. Prefer multiple choice questions (easier to answer than open-ended)
+4. Focus on: purpose, constraints, success criteria
 
-### 探索方案
+### Exploring Approaches
 
-1. 提出 2-3 种不同方案，各附权衡分析
-2. 先说推荐方案和理由
-3. 严格执行 YAGNI — 砍掉所有不确定需要的功能
+1. Propose 2-3 different approaches with trade-offs
+2. Lead with recommended option and explain why
+3. Apply YAGNI ruthlessly — remove unnecessary features from all designs
 
-### 呈现设计
+### Presenting the Design
 
-1. 确信理解了要构建什么后，开始呈现设计
-2. 分段展示，每段 200-300 字
-3. 每段结束后确认：「到这里看起来对吗？」
-4. 覆盖：架构、组件、数据流、错误处理、测试策略
-5. 有不清楚的地方随时退回澄清
+1. Once you understand what to build, present the design
+2. Break into sections of 200-300 words
+3. After each section: "Does this look right so far?"
+4. Cover: architecture, components, data flow, error handling, testing
+5. Go back and clarify if something doesn't make sense
 
-## 关键原则
+## Key Principles
 
-| 原则 | 说明 |
-|------|------|
-| 每次一个问题 | 不要一次抛出多个问题让用户应接不暇 |
-| 选择题优先 | 比开放式更容易回答，更快收敛 |
-| YAGNI | 只设计确定需要的功能，砍掉所有"未来可能用到的" |
-| 多方案探索 | 永远至少提出 2 种方案再做决定 |
-| 增量确认 | 设计分段展示，逐段验证，不要最后一次性丢出全部 |
-| 灵活退回 | 有任何不对的地方随时退回重新澄清 |
+| Principle | Description |
+|-----------|-------------|
+| One question at a time | Don't overwhelm with multiple questions |
+| Multiple choice preferred | Easier to answer, faster convergence |
+| YAGNI | Only design features that are certainly needed |
+| Explore alternatives | Always propose 2+ approaches before deciding |
+| Incremental validation | Present design in sections, validate each |
+| Flexible backtracking | Go back and clarify when something is off |
 
-## 设计完成后
+## After Design is Confirmed
 
-1. 询问：「方案确认了，要开始实现吗？」
-2. 如果继续 → 使用 planner agent 创建详细实施计划
-3. 将设计决策记录在相关模块的文档或注释中
+1. Ask: "Design confirmed. Ready to start implementation?"
+2. If yes → use planner agent to create detailed implementation plan
+3. Record design decisions in relevant module docs or comments

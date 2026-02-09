@@ -1,61 +1,61 @@
 ---
 name: frontend-design
-description: 当构建或修改前端界面时使用。触发词包括：UI、页面、组件、界面、前端、hpc-ui、样式、布局、设计、美化。生成有辨识度的、生产级的前端代码，避免千篇一律的 AI 通用美学。
+description: Use when building or modifying frontend interfaces. Trigger words include UI, page, component, interface, frontend, hpc-ui, styling, layout, design, beautify. Generates distinctive, production-grade frontend code avoiding generic AI aesthetics.
 ---
 
-# 前端设计约束
+# Frontend Design Constraints
 
-## 概述
+## Overview
 
-构建有辨识度的、生产级的前端界面，拒绝 AI 生成的通用风格。
+Create distinctive, production-grade frontend interfaces. Reject generic AI-generated aesthetics.
 
-**核心原则：** 先确定一个大胆的美学方向，然后精准执行。关键是意图性，不是强度。
+**Core principle:** Choose a bold aesthetic direction, then execute it with precision. The key is intentionality, not intensity.
 
-## 设计思维（编码前必须完成）
+## Design Thinking (before coding)
 
-1. **目的** — 这个界面解决什么问题？谁在用？
-2. **风格** — 选一个明确方向：极简主义 / 工业风 / 复古未来 / 有机自然 / 精致奢华 / 编辑杂志风 / 粗野主义 / 柔和粉彩 / 几何装饰 / 实用主义
-3. **约束** — 框架、性能、无障碍要求
-4. **差异化** — 什么让这个设计令人难忘？用户会记住的一件事是什么？
+1. **Purpose** — What problem does this interface solve? Who uses it?
+2. **Tone** — Pick a clear direction: brutally minimal, industrial, retro-futuristic, organic/natural, luxury/refined, editorial/magazine, brutalist, soft/pastel, geometric, utilitarian
+3. **Constraints** — Framework, performance, accessibility requirements
+4. **Differentiation** — What makes this unforgettable? The one thing someone will remember?
 
-## 各维度要求
+## Requirements by Dimension
 
-### 字体
-- 选择美观、独特、有个性的字体
-- 展示字体搭配：一个有辨识度的标题字体 + 一个精致的正文字体
-- **禁止**：Inter、Roboto、Arial、系统默认字体
+### Typography
+- Choose beautiful, unique, characterful fonts
+- Pair a distinctive display font with a refined body font
+- **BANNED:** Inter, Roboto, Arial, system default fonts
 
-### 配色
-- 确定一个统一的美学体系，用 CSS 变量保持一致
-- 主色 + 锐利强调色 > 平均分配的怯懦配色
-- **禁止**：紫色渐变 + 白底的老套组合
+### Color
+- Commit to a cohesive aesthetic, use CSS variables for consistency
+- Dominant colors with sharp accents > timid, evenly-distributed palettes
+- **BANNED:** Purple gradients on white backgrounds
 
-### 动画
-- 优先 CSS-only 方案
-- React 项目用 Motion（framer-motion）库
-- 一个精心编排的页面加载动画（交错延迟）胜过零散的微交互
-- 善用滚动触发和悬停状态制造惊喜
+### Motion
+- Prefer CSS-only solutions
+- React projects: use Motion (framer-motion) library
+- One well-orchestrated page load animation (staggered delays) > scattered micro-interactions
+- Use scroll-triggering and hover states that surprise
 
-### 布局
-- 大胆的空间构图：不对称、重叠、对角线、打破网格
-- 充足的留白 或 有控制的密度
-- 不要千篇一律的卡片网格
+### Layout
+- Bold spatial composition: asymmetry, overlap, diagonal flow, grid-breaking
+- Generous negative space OR controlled density
+- Avoid cookie-cutter card grids
 
-### 背景与视觉细节
-- 营造氛围和层次感，不要默认纯色背景
-- 运用：渐变网格、噪声纹理、几何图案、层叠透明度、戏剧性阴影、装饰边框、颗粒覆盖
+### Backgrounds & Visual Details
+- Create atmosphere and depth, don't default to solid colors
+- Use: gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, grain overlays
 
-## 黑名单 — 绝对禁止
+## Blacklist — Absolute Bans
 
-以下组合是 AI 生成界面的标志，必须避免：
-- Inter / Roboto / Arial / 系统字体
-- 紫色渐变 + 白色背景
-- 千篇一律的卡片布局
-- 缺乏上下文特色的通用组件样式
-- 每次生成都趋同的"安全选择"
+These are hallmarks of generic AI-generated interfaces:
+- Inter / Roboto / Arial / system fonts
+- Purple gradient + white background
+- Cookie-cutter card layouts
+- Generic component styling without context-specific character
+- Converging on "safe choices" every time
 
-## 实施原则
+## Implementation Principles
 
-- 匹配实现复杂度与美学愿景：极简设计要精确克制，最大化设计要丰富细节
-- 优雅来自对愿景的精准执行，而不是模板堆砌
-- 每次设计都应该不同 — 变换明暗主题、字体、美学风格
+- Match complexity to vision: minimal designs need precision and restraint, maximalist designs need rich detail
+- Elegance comes from executing the vision precisely, not from template stacking
+- Every design should be different — vary themes, fonts, aesthetics
