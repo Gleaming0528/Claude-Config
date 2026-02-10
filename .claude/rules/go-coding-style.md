@@ -1,3 +1,9 @@
+---
+description: Go coding style — gofmt, naming, Gin handler conventions, error wrapping
+globs: "**/*.go"
+alwaysApply: false
+---
+
 # Go Coding Style
 
 ## Formatting

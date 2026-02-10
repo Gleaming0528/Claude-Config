@@ -1,3 +1,9 @@
+---
+description: Go testing — TDD, table-driven tests, race detection, coverage targets
+globs: "**/*_test.go"
+alwaysApply: false
+---
+
 # Go Testing
 
 ## Framework

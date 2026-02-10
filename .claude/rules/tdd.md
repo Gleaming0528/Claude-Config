@@ -1,3 +1,8 @@
+---
+description: TDD constraints — red-green-refactor, no production code without failing test
+alwaysApply: true
+---
+
 # TDD Constraints
 
 ## Iron Law: No production code without a failing test first

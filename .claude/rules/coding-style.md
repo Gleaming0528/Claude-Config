@@ -1,3 +1,8 @@
+---
+description: General coding style — immutability, file organization, error handling, input validation
+alwaysApply: true
+---
+
 # Coding Style
 
 ## Immutability (CRITICAL)

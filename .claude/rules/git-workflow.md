@@ -1,3 +1,8 @@
+---
+description: Git workflow — commit format, PR process, feature implementation flow
+alwaysApply: true
+---
+
 # Git Workflow
 
 ## Commit Message Format
