@@ -62,6 +62,6 @@ AI agent, skill, rule, and command configurations for the HPC platform.
 |--------|:-----------:|------------|
 | `agents/*.md` | Yes | Invoke via `/agent-name` |
 | `skills/*/SKILL.md` | Yes | Auto-triggered by keywords |
-| `rules/*.md` | No | AI reads on request; consider migrating to root CLAUDE.md |
+| `rules/*.md` | No | Reference docs — AI reads on request |
 | `commands/*.md` | No | AI reads on request (e.g. "sync repos") |
 | Root `CLAUDE.md` | Yes | Always-applied workspace rule |
