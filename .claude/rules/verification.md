@@ -1,3 +1,8 @@
+---
+description: Verification — no completion claims without fresh evidence, forbidden phrases
+alwaysApply: true
+---
+
 # Verification Before Completion
 
 ## Iron Law: No completion claims without fresh verification evidence

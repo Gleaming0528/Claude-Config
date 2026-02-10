@@ -1,3 +1,9 @@
+---
+description: Go security — secrets, input validation, context timeouts, race detection
+globs: "**/*.go"
+alwaysApply: false
+---
+
 # Go Security
 
 ## Secret Management

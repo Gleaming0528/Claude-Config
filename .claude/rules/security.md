@@ -1,3 +1,8 @@
+---
+description: Security guidelines — secrets, SQL injection, XSS, CSRF, rate limiting
+alwaysApply: true
+---
+
 # Security Guidelines
 
 ## Mandatory Security Checks
