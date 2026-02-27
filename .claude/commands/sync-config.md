@@ -22,7 +22,6 @@ description: 将 .claude 目录和 CLAUDE.md 推送到 GitHub 仓库 Gleaming052
    cp -r /Users/gleaming/gitlab/hpc/.claude .
    cp /Users/gleaming/gitlab/hpc/CLAUDE.md .
    rm -rf .claude/skills/k8s-proxy-tunnel
-   rm -rf .claude/skills/job-failure-diagnosis
    ```
 
 3. **拷贝 README.md 到仓库根目录**：
