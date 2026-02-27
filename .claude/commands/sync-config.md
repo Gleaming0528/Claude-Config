@@ -16,21 +16,22 @@ description: 将 .claude 目录和 CLAUDE.md 推送到 GitHub 仓库 Gleaming052
    git clone git@github.com:Gleaming0528/Claude-Config.git .
    ```
 
-4. **用最新文件覆盖**：
+2. **用最新文件覆盖**（排除不需要同步的 skill）：
    ```bash
    rm -rf .claude
    cp -r /Users/gleaming/gitlab/hpc/.claude .
    cp /Users/gleaming/gitlab/hpc/CLAUDE.md .
+   rm -rf .claude/skills/k8s-proxy-tunnel
    ```
 
-5. **检查变更**：
+3. **检查变更**：
    ```bash
    git add -A
    git status --short
    ```
    - 如果没有变更，提示用户"配置已是最新"并跳过后续步骤
 
-6. **根据变更内容生成 commit message 并推送**：
+4. **根据变更内容生成 commit message 并推送**：
    - 读取 `git status --short` 的输出
    - 分析变更文件，生成描述性 commit message，格式：
      ```
@@ -38,20 +39,13 @@ description: 将 .claude 目录和 CLAUDE.md 推送到 GitHub 仓库 Gleaming052
      
      <逐行列出变更文件及原因>
      ```
-   - 示例：
-     ```
-     sync: add Go rules frontmatter for Cursor compatibility
-     
-     - .claude/rules/go-*.md: add YAML frontmatter (description, globs)
-     - .claude/rules/coding-style.md: add alwaysApply frontmatter
-     ```
    - 提交并推送：
      ```bash
      git commit -m "<生成的 message>"
      git push origin main
      ```
 
-7. **清理临时目录**：
+5. **清理临时目录**：
    ```bash
    rm -rf /Users/gleaming/gitlab/_sync_tmp
    ```
