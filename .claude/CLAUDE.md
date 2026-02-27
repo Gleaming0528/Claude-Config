@@ -6,44 +6,47 @@ AI agent, skill, rule, and command configurations for the HPC platform.
 
 ```
 .claude/
-├── agents/                        # Subagents — invoke via /agent-name in Cursor
-│   ├── code-reviewer.md           # Unified Go + Frontend reviewer (auto-routes by file type)
-│   ├── go-reviewer.md             # Go-only reviewer (Gin, K8s, concurrency, error handling)
-│   ├── frontend-reviewer.md       # Frontend-only reviewer (React, TS, Zustand, auth, a11y)
-│   ├── code-simplifier.md         # Code simplification (Go + TS/React aware)
-│   └── planner.md                 # Implementation planning for complex features
+├── agents/                          # Subagents — invoke via /agent-name in Cursor
+│   ├── code-reviewer.md             # Unified Go + Frontend reviewer (auto-routes by file type)
+│   ├── go-reviewer.md               # Go-only reviewer (Gin, K8s, concurrency, error handling)
+│   ├── frontend-reviewer.md         # Frontend-only reviewer (React, TS, Zustand, auth, a11y)
+│   ├── code-simplifier.md           # Code simplification (Go + TS/React aware)
+│   └── planner.md                   # Implementation planning for complex features
 │
-├── skills/                        # Domain knowledge (auto-loaded, triggered by keywords)
-│   ├── brainstorming/             # Requirements clarification and design discussion
-│   ├── executing-plans/           # Plan execution with review checkpoints
-│   ├── frontend-design/           # Frontend UI/UX patterns
-│   ├── golang-patterns/           # Idiomatic Go: error handling, concurrency, interfaces, Gin
-│   ├── golang-testing/            # Go testing: table-driven, benchmarks, fuzz, mocks
-│   ├── hpc-k8s-deploy/            # K8s deployment, Kustomize, CRDs
+├── skills/                          # Domain knowledge (auto-loaded, triggered by keywords)
+│   ├── brainstorming/               # Requirements clarification and design discussion
+│   ├── executing-plans/             # Plan execution with review checkpoints
+│   ├── frontend-design/             # Frontend UI/UX patterns
+│   ├── golang-patterns/             # Idiomatic Go: error handling, concurrency, interfaces, Gin
+│   ├── golang-testing/              # Go testing: table-driven, benchmarks, fuzz, mocks
+│   ├── hpc-k8s-deploy/              # K8s deployment, Kustomize, CRDs
+│   ├── job-failure-diagnosis/       # HPC training job failure diagnosis via Grafana/Loki
 │   ├── subagent-driven-development/ # Multi-agent task dispatch with two-stage review
-│   ├── systematic-debugging/      # Bug investigation methodology (4 phases)
-│   ├── using-git-worktrees/       # Isolated feature development
-│   └── writing-plans/             # Implementation plan authoring
+│   ├── systematic-debugging/        # Bug investigation methodology (4 phases)
+│   ├── training-log-diagnosis/      # AI/ML training log analysis (loss, grad_norm, NCCL)
+│   ├── using-git-worktrees/         # Isolated feature development
+│   └── writing-plans/               # Implementation plan authoring
 │
-├── rules/                         # Reference guidelines (NOT auto-loaded by Cursor)
-│   ├── coding-style.md            # General style (immutability, file organization)
-│   ├── git-workflow.md            # Commit format, PR process
-│   ├── go-coding-style.md         # Go: gofmt, naming, Gin conventions
-│   ├── go-security.md             # Go: secrets, input validation, race detection
-│   ├── go-testing.md              # Go: TDD, table-driven, coverage targets
-│   ├── security.md                # General security checklist
-│   ├── tdd.md                     # TDD methodology (RED-GREEN-REFACTOR)
-│   └── verification.md            # Verification before completion claims
+├── rules/                           # Reference guidelines (NOT auto-loaded by Cursor)
+│   ├── coding-style.md              # General style (immutability, file organization)
+│   ├── git-workflow.md              # Commit format, PR process
+│   ├── go-coding-style.md           # Go: gofmt, naming, Gin conventions
+│   ├── go-security.md               # Go: secrets, input validation, race detection
+│   ├── go-testing.md                # Go: TDD, table-driven, coverage targets
+│   ├── security.md                  # General security checklist
+│   ├── tdd.md                       # TDD methodology (RED-GREEN-REFACTOR)
+│   └── verification.md              # Verification before completion claims
 │
-├── commands/                      # Workflow instructions (readable by AI on request)
-│   ├── build-fix.md               # Incremental build error resolution
-│   ├── code-review.md             # Code review workflow
-│   ├── commit.md                  # Commit workflow
-│   ├── plan.md                    # Planning workflow
-│   ├── sync-config.md             # Sync .claude/ to GitHub backup repo
-│   └── sync-repos.md              # Sync all GitLab repos to local
+├── commands/                        # Workflow instructions (readable by AI on request)
+│   ├── build-fix.md                 # Incremental build error resolution
+│   ├── code-review.md               # Code review workflow
+│   ├── commit.md                    # Commit workflow
+│   ├── plan.md                      # Planning workflow
+│   ├── sync-config.md               # Sync .claude/ to GitHub backup repo
+│   └── sync-repos.md                # Sync all GitLab repos to local
 │
-└── CLAUDE.md                      # This file
+├── CLAUDE.md                        # This file
+└── README.md                        # GitHub repo README (sync 时拷贝到仓库根目录)
 ```
 
 ## Agents — invoke via `/agent-name`

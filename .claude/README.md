@@ -7,12 +7,12 @@
 在你的**项目根目录**下执行：
 
 ```bash
-git clone git@github.com:Gleaming0528/Claude-Config.git .claude-tmp && \
-  cp -r .claude-tmp/.claude .claude-tmp/CLAUDE.md . && \
-  rm -rf .claude-tmp
+git clone git@github.com:Gleaming0528/Claude-Config.git /tmp/claude-config && \
+  cp -r /tmp/claude-config/.claude /tmp/claude-config/CLAUDE.md . && \
+  rm -rf /tmp/claude-config
 ```
 
-执行完毕后 `.claude/` 和 `CLAUDE.md` 已就位，直接可用。
+执行完毕后 `.claude/` 和 `CLAUDE.md` 已就位，直接可用。临时文件在 `/tmp` 中，不会污染你的项目目录。
 
 > 如果项目中已有同名文件，上述命令会覆盖。建议先备份。
 
