@@ -14,6 +14,7 @@ HPC 训练任务诊断数据采集
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -26,26 +27,57 @@ from urllib.error import HTTPError, URLError
 
 # ==================== 凭证加载 ====================
 
-CREDENTIALS_PATH = os.path.expanduser("~/.config/hpc/credentials")
+TOML_CONFIG_PATH = os.path.expanduser("~/.config/hpc/config.toml")
+TOML_CONFIG_PATH_ALT = os.path.expanduser("~/.config/hpc.toml")
 
 
 def _load_token() -> str:
-    """从环境变量或 ~/.config/hpc/credentials 读取 token"""
-    token = os.environ.get("HPC_API_TOKEN")
-    if token:
-        return token
+    """
+    Token 加载优先级：
+      1. 环境变量 HPC_API_TOKEN / HPC_AUTH
+      2. SDK TOML 配置 ~/.config/hpc/config.toml -> env.<current>.auth
+      3. SDK TOML 备选 ~/.config/hpc.toml -> env.<current>.auth
+    """
+    for env_key in ("HPC_API_TOKEN", "HPC_AUTH"):
+        token = os.environ.get(env_key)
+        if token:
+            return token if token.startswith("Bearer ") else f"Bearer {token}"
+
+    for toml_path in (TOML_CONFIG_PATH, TOML_CONFIG_PATH_ALT):
+        token = _load_token_from_toml(toml_path)
+        if token:
+            return token
+
+    print(
+        "[FATAL] 未找到 API Token，请先运行 `hi login` 或设置环境变量 HPC_AUTH",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
+def _load_token_from_toml(path: str) -> Optional[str]:
+    """从 SDK 的 TOML 配置文件读取当前环境的 auth token"""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = f.read()
+    except (FileNotFoundError, OSError):
+        return None
 
     try:
-        with open(CREDENTIALS_PATH) as f:
-            for line in f:
-                line = line.strip()
-                if line.startswith("HPC_API_TOKEN="):
-                    return line.split("=", 1)[1]
-    except FileNotFoundError:
-        pass
+        import tomlkit
+        data = tomlkit.loads(raw)
+    except ImportError:
+        try:
+            import tomllib  # Python 3.11+
+            data = tomllib.loads(raw)
+        except ImportError:
+            return None
 
-    print(f"[FATAL] 未找到 HPC_API_TOKEN：设置环境变量或写入 {CREDENTIALS_PATH}", file=sys.stderr)
-    sys.exit(1)
+    env_name = data.get("current", {}).get("env", "prod")
+    auth = data.get("env", {}).get(env_name, {}).get("auth", "")
+    if not auth:
+        return None
+    return auth if auth.startswith("Bearer ") else f"Bearer {auth}"
 
 
 # ==================== 配置 ====================
@@ -53,7 +85,7 @@ def _load_token() -> str:
 # hyper-ai API Gateway（需 Bearer 认证）
 HPC_API_URL = "https://hyper-ai.hellorobotaxi.top"
 HPC_API_HEADERS = {
-    "Authorization": _load_token(),
+    "Authorization": f"Bearer {_load_token()}",
     "x-user-id": "hpc-diagnosis-api",
     "x-platform": "hyper-ai",
     "x-scopes": "platform:admin",
@@ -77,6 +109,30 @@ CLUSTER_DATASOURCES = {
 
 DEFAULT_LOKI_UID = "ef6h29oj7drlsd"
 TIMEOUT = 30
+
+
+# ==================== 时间解析 ====================
+
+
+def _parse_timestamp(ts_str: str) -> datetime:
+    """解析 ISO 8601 时间戳，不依赖 dateutil"""
+    ts_str = ts_str.strip()
+    # 处理带时区偏移的格式: 2026-03-18T23:56:08+08:00
+    m = re.match(
+        r"(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.\d+)?"
+        r"(?:Z|([+-]\d{2}):?(\d{2}))?$",
+        ts_str,
+    )
+    if not m:
+        raise ValueError(f"无法解析时间: {ts_str}")
+    dt = datetime.strptime(f"{m.group(1)}T{m.group(2)}", "%Y-%m-%dT%H:%M:%S")
+    if m.group(3) is not None:
+        offset_h, offset_m = int(m.group(3)), int(m.group(4))
+        tz = timezone(timedelta(hours=offset_h, minutes=offset_m if offset_h >= 0 else -offset_m))
+        dt = dt.replace(tzinfo=tz)
+    else:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
 
 
 # ==================== URL 解析 ====================
@@ -136,6 +192,17 @@ def grafana_post(path: str, body: dict, params: Optional[dict] = None) -> dict:
 # ==================== 资源信息 ====================
 
 
+def _parse_annotation_pods(metadata: dict) -> list[dict]:
+    """从 hpc.org/active-pods annotation 解析 pod 列表"""
+    raw = metadata.get("annotations", {}).get("hpc.org/active-pods", "")
+    if not raw:
+        return []
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+
+
 def get_resource_info(namespace: str, cluster: str, job_name: str) -> dict[str, Any]:
     """获取 AIJob 资源信息（通过 hyper-ai API）"""
     data = hpc_api_get(
@@ -150,20 +217,25 @@ def get_resource_info(namespace: str, cluster: str, job_name: str) -> dict[str, 
     vcjob_name = status.get("vcJobName", "")
     pod_pattern = f"{vcjob_name}.*" if vcjob_name else f".*{job_name}.*"
 
-    pod_names = []
-    active_pods_str = metadata.get("annotations", {}).get("hpc.org/active-pods", "")
-    if active_pods_str:
-        try:
-            for p in json.loads(active_pods_str):
-                if p.get("name"):
-                    pod_names.append(p["name"])
-        except (json.JSONDecodeError, TypeError):
-            pass
+    # 提取完整 pod 信息（name, role, nodeName, podIP, phase）
+    pods: list[dict] = []
+    seen_pods: set[str] = set()
 
-    for p in status.get("activePods", []):
-        name = p.get("name", "")
-        if name and name not in pod_names:
-            pod_names.append(name)
+    for source in (status.get("activePods", []), _parse_annotation_pods(metadata)):
+        for p in source:
+            name = p.get("name", "")
+            if name and name not in seen_pods:
+                seen_pods.add(name)
+                pods.append({
+                    "name": name,
+                    "role": p.get("role", ""),
+                    "node_name": p.get("nodeName", ""),
+                    "pod_ip": p.get("podIP", ""),
+                    "phase": p.get("phase", ""),
+                })
+
+    pod_names = [p["name"] for p in pods]
+    node_names = list({p["node_name"] for p in pods if p["node_name"]})
 
     return {
         "name": metadata.get("name"),
@@ -180,7 +252,9 @@ def get_resource_info(namespace: str, cluster: str, job_name: str) -> dict[str, 
         "created_at": metadata.get("creationTimestamp", ""),
         "vcjob_name": vcjob_name,
         "pod_pattern": pod_pattern,
-        "pod_names": pod_names[:10],
+        "pods": pods[:20],
+        "pod_names": pod_names[:20],
+        "node_names": node_names,
         "conditions": status.get("conditions", []),
         "pod_stats": status.get("podStats", {}),
         "max_retry": spec.get("maxRetry", 0),
@@ -195,7 +269,8 @@ def get_loki_uid(cluster: str) -> str:
     return CLUSTER_DATASOURCES.get(cluster, {}).get("loki", DEFAULT_LOKI_UID)
 
 
-def query_loki(expr: str, start_ms: int, end_ms: int, max_lines: int, datasource_uid: str) -> dict:
+def query_loki(expr: str, start_ms: int, end_ms: int, max_lines: int,
+               datasource_uid: str, direction: str = "backward") -> dict:
     """查询 Grafana Loki（匿名，直连 Grafana）"""
     body = {
         "queries": [{
@@ -204,7 +279,7 @@ def query_loki(expr: str, start_ms: int, end_ms: int, max_lines: int, datasource
             "queryType": "range",
             "datasource": {"type": "loki", "uid": datasource_uid},
             "maxLines": max_lines,
-            "direction": "backward",
+            "direction": direction,
         }],
         "from": str(start_ms),
         "to": str(end_ms),
@@ -281,48 +356,51 @@ def fetch_logs(namespace: str, cluster: str, pod_pattern: str, created_at: str) 
 
     now = datetime.now(timezone.utc)
     end_ms = int(now.timestamp() * 1000)
+    fallback_ms = int((now - timedelta(hours=6)).timestamp() * 1000)
 
+    start_ms = fallback_ms
     if created_at:
         try:
-            from dateutil import parser
-            job_ts = parser.parse(created_at)
-            if job_ts.tzinfo is None:
-                job_ts = job_ts.replace(tzinfo=timezone.utc)
+            job_ts = _parse_timestamp(created_at)
             start_ms = int(job_ts.timestamp() * 1000)
         except Exception:
-            start_ms = int((now - timedelta(hours=6)).timestamp() * 1000)
-    else:
-        start_ms = int((now - timedelta(hours=6)).timestamp() * 1000)
+            pass
 
     if start_ms > end_ms:
-        start_ms = int((now - timedelta(hours=6)).timestamp() * 1000)
+        start_ms = fallback_ms
 
-    base_query = '{' + f'namespace="{namespace}", cluster="{cluster}", pod=~"{pod_pattern}"' + '}'
+    # 注意：Loki 中没有 cluster 标签，仅用 namespace + pod 过滤
+    # cluster 信息已在选择 datasource UID 时使用
+    base_query = '{' + f'namespace="{namespace}", pod=~"{pod_pattern}"' + '}'
 
     python_error_query = base_query + ' |~ "(?i)(OSError|IOError|RuntimeError|ValueError|TypeError|KeyError|AttributeError|MemoryError|FileNotFoundError|PermissionError|CUDA|NCCL|cuda|nccl)"'
     general_error_query = base_query + ' |~ "(?i)(Traceback|exception|failed|fatal|panic|killed|oom|error|Error)"'
     recent_query = base_query
 
-    results: dict[str, Any] = {"error_logs": [], "recent_logs": [], "queries": {}}
+    results: dict[str, Any] = {"error_logs": [], "recent_logs": [], "startup_logs": [], "queries": {}}
 
-    def _query(name: str, expr: str, max_lines: int) -> tuple[str, list[dict]]:
+    def _query(name: str, expr: str, max_lines: int,
+               direction: str = "backward") -> tuple[str, list[dict]]:
         try:
-            raw = query_loki(expr, start_ms, end_ms, max_lines, loki_uid)
+            raw = query_loki(expr, start_ms, end_ms, max_lines, loki_uid, direction)
             return name, parse_loki_response(raw)
         except Exception as e:
             print(f"[WARN] Loki 查询 {name} 失败: {e}", file=sys.stderr)
             return name, []
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         futures = [
             pool.submit(_query, "python_errors", python_error_query, 200),
             pool.submit(_query, "general_errors", general_error_query, 100),
             pool.submit(_query, "recent", recent_query, 200),
+            pool.submit(_query, "startup", recent_query, 100, "forward"),
         ]
         for f in as_completed(futures):
             name, logs = f.result()
             if name in ("python_errors", "general_errors"):
                 results["error_logs"].extend(logs)
+            elif name == "startup":
+                results["startup_logs"] = logs
             else:
                 results["recent_logs"] = logs
 
@@ -344,6 +422,65 @@ def fetch_logs(namespace: str, cluster: str, pod_pattern: str, created_at: str) 
     }
 
     return results
+
+
+# ==================== 主机名映射 ====================
+
+
+def _build_host_mapping(resource_info: dict, log_data: dict) -> tuple[list[dict], list[str]]:
+    """
+    合并 API pod 信息与日志中 /etc/hosts 条目，构建完整的主机名映射。
+
+    API 提供:  pod_ip → node_name (K8s 格式，如 e01-cn-xxx)
+    训练日志:  ip → training_hostname (旧格式，如 hpc-prod-al-sh01-h20-96-xxx)
+
+    两种格式在 Prometheus DCGM 中被不同 exporter 使用，GPU 健康检查需要两者。
+    """
+
+    # 从 API pod 信息构建 ip→node_name 映射
+    ip_to_node: dict[str, dict] = {}
+    for pod in resource_info.get("pods", []):
+        ip = pod.get("pod_ip", "")
+        if ip:
+            ip_to_node[ip] = {
+                "pod_name": pod.get("name", ""),
+                "role": pod.get("role", ""),
+                "node_name": pod.get("node_name", ""),
+                "pod_ip": ip,
+                "training_hostname": "",
+            }
+
+    # 从日志中提取主机名，多种来源：
+    #   1. /etc/hosts: "📝 /etc/hosts: {ip} → {hostname}"
+    #   2. Smart Training Agent: "Host: hpc-prod-al-sh01-h20-96-0018"
+    #   3. torchrun 错误: "host      : hpc-prod-al-sh01-h20-96-0018"
+    hosts_pattern = re.compile(r"/etc/hosts:\s*([\d.]+)\s*(?:→|->)\s*(\S+)")
+    # 匹配集群节点主机名: hpc-{env}-{az}-{zone}-{gpu}-{mem}-{id}
+    # 例: hpc-prod-al-sh01-h20-96-0018 (7 段)
+    node_hostname_pattern = re.compile(r"(hpc-\w+-\w+-\w+-\w+-\d+-\d+)")
+
+    all_logs = log_data.get("startup_logs", []) + log_data.get("recent_logs", []) + log_data.get("error_logs", [])
+    training_hostnames: set[str] = set()
+
+    for log in all_logs:
+        msg = log.get("message", "")
+
+        # /etc/hosts → ip→hostname 精确映射
+        m = hosts_pattern.search(msg)
+        if m:
+            ip, hostname = m.group(1), m.group(2)
+            if ip in ip_to_node and "vcjob" not in hostname:
+                ip_to_node[ip]["training_hostname"] = hostname
+
+        # 收集所有出现的集群节点主机名
+        for hostname in node_hostname_pattern.findall(msg):
+            training_hostnames.add(hostname)
+
+    mapping = list(ip_to_node.values())
+
+    # 返回 (pod 映射列表, 全量训练主机名集合)
+    # training_hostnames 用于 GPU 健康检查（与 node_names 合并覆盖双格式）
+    return mapping, sorted(training_hostnames)
 
 
 # ==================== 主流程 ====================
@@ -393,21 +530,28 @@ def main():
 
     # Step 2: 获取日志（Grafana Loki, 匿名）
     print("[INFO] 正在获取 Loki 日志...", file=sys.stderr)
-    log_data: dict[str, Any] = {"error_logs": [], "recent_logs": []}
+    log_data: dict[str, Any] = {"error_logs": [], "recent_logs": [], "startup_logs": []}
     try:
         log_data = fetch_logs(namespace, cluster, pod_pattern, created_at)
     except Exception as e:
         print(f"[ERROR] 日志获取失败: {e}", file=sys.stderr)
         log_data["error"] = str(e)
 
+    # Step 3: 构建 host_mapping（合并 API pod 信息与日志中的主机名）
+    host_mapping, training_hostnames = _build_host_mapping(resource_info, log_data)
+
     # 汇总结果
     result = {
         "target": {"namespace": namespace, "cluster": cluster, "job_name": job_name},
         "resource_info": resource_info,
+        "host_mapping": host_mapping,
+        "training_hostnames": training_hostnames,
         "error_logs": log_data.get("error_logs", []),
         "error_log_count": len(log_data.get("error_logs", [])),
         "recent_logs": log_data.get("recent_logs", []),
         "recent_log_count": len(log_data.get("recent_logs", [])),
+        "startup_logs": log_data.get("startup_logs", []),
+        "startup_log_count": len(log_data.get("startup_logs", [])),
         "queries": log_data.get("queries", {}),
         "fetched_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -424,7 +568,16 @@ def main():
     # 快速摘要
     print("\n[SUMMARY]", file=sys.stderr)
     print(f"  状态: {resource_info.get('phase', 'Unknown')}", file=sys.stderr)
+    pods = resource_info.get("pods", [])
+    if pods:
+        print(f"  节点: {len(pods)} pods", file=sys.stderr)
+        for p in pods:
+            print(f"    {p['role']:8s} {p['name']}", file=sys.stderr)
+            print(f"             → node={p['node_name']}  ip={p['pod_ip']}", file=sys.stderr)
+    if training_hostnames:
+        print(f"  训练主机名: {', '.join(training_hostnames)}", file=sys.stderr)
     print(f"  错误日志: {len(log_data.get('error_logs', []))} 条", file=sys.stderr)
+    print(f"  启动日志: {len(log_data.get('startup_logs', []))} 条", file=sys.stderr)
     print(f"  最近日志: {len(log_data.get('recent_logs', []))} 条", file=sys.stderr)
 
 

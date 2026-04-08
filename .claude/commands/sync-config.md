@@ -19,8 +19,8 @@ description: 将 .claude 目录和 CLAUDE.md 推送到 GitHub 仓库 Gleaming052
 2. **用最新文件覆盖**（排除不需要同步的 skill）：
    ```bash
    rm -rf .claude
-   cp -r /Users/gleaming/gitlab/hpc/.claude .
-   cp /Users/gleaming/gitlab/hpc/CLAUDE.md .
+   cp -r /Users/gleaming/gitlab/workspace/.claude .
+   cp /Users/gleaming/gitlab/workspace/CLAUDE.md .
    rm -rf .claude/skills/k8s-proxy-tunnel
    ```
 

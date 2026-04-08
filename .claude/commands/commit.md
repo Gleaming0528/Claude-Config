@@ -1,1 +1,1 @@
-cd 到 hpc-ui 这个项目，然后commit最新的改动，解决commit hock中的lint错误,并rebase main，
+按照 hpc-commit skill 的流程，提交当前子项目的最新改动。先通过质量门禁，再 commit + rebase main + push。如果 hook 报错则修复后重试。

@@ -1,69 +1,70 @@
 ---
 name: executing-plans
-description: Use when you have a written implementation plan to execute with review checkpoints. Trigger words include execute plan, run plan, implement plan, start building, follow the plan.
+description: Use when you have a written implementation plan to execute in a separate session with review checkpoints
 ---
 
 # Executing Plans
 
 ## Overview
 
-Load plan, review critically, execute tasks in batches, report for review between batches.
+Load plan, review critically, execute all tasks, report when complete.
 
-**Core principle:** Batch execution with checkpoints for architect review.
+**Announce at start:** "I'm using the executing-plans skill to implement this plan."
+
+**Note:** Tell your human partner that Superpowers works much better with access to subagents. The quality of its work will be significantly higher if run on a platform with subagent support (such as Claude Code or Codex). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
 
 ## The Process
 
 ### Step 1: Load and Review Plan
-
 1. Read plan file
-2. Review critically - identify questions or concerns
-3. If concerns: raise them before starting
-4. If clear: create TodoWrite with all tasks and proceed
+2. Review critically - identify any questions or concerns about the plan
+3. If concerns: Raise them with your human partner before starting
+4. If no concerns: Create TodoWrite and proceed
 
-### Step 2: Execute Batch (default: 3 tasks)
+### Step 2: Execute Tasks
 
 For each task:
-1. Mark as in_progress in TodoWrite
+1. Mark as in_progress
 2. Follow each step exactly (plan has bite-sized steps)
 3. Run verifications as specified
 4. Mark as completed
 
-### Step 3: Report
+### Step 3: Complete Development
 
-When batch complete:
-- Show what was implemented
-- Show verification output
-- Say: "Ready for feedback."
+After all tasks complete and verified:
+- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
+- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
+- Follow that skill to verify tests, present options, execute choice
 
-### Step 4: Continue
-
-Based on feedback:
-- Apply changes if needed
-- Execute next batch
-- Repeat until complete
-
-### Step 5: Final Verification
-
-After all tasks:
-- Run full test suite
-- Verify no regressions
-- Report final status
-
-## When to Stop and Ask
+## When to Stop and Ask for Help
 
 **STOP executing immediately when:**
-- Hit a blocker (missing dependency, test fails, unclear instruction)
-- Plan has critical gaps
+- Hit a blocker (missing dependency, test fails, instruction unclear)
+- Plan has critical gaps preventing starting
 - You don't understand an instruction
 - Verification fails repeatedly
 
 **Ask for clarification rather than guessing.**
 
-## Red Flags
+## When to Revisit Earlier Steps
 
-**Never:**
-- Skip verifications specified in plan
-- Guess when blocked (stop and ask)
-- Start on main/master without explicit user consent
-- Proceed past failing tests without reporting
-- Combine or skip plan steps for "efficiency"
+**Return to Review (Step 1) when:**
+- Partner updates the plan based on your feedback
+- Fundamental approach needs rethinking
+
+**Don't force through blockers** - stop and ask.
+
+## Remember
+- Review plan critically first
+- Follow plan steps exactly
+- Don't skip verifications
+- Reference skills when plan says to
+- Stop when blocked, don't guess
+- Never start implementation on main/master branch without explicit user consent
+
+## Integration
+
+**Required workflow skills:**
+- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **superpowers:writing-plans** - Creates the plan this skill executes
+- **superpowers:finishing-a-development-branch** - Complete development after all tasks
