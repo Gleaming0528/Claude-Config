@@ -1,6 +1,6 @@
 ---
 name: job-failure-diagnosis
-description: Diagnose failed or problematic HPC training jobs by fetching logs from Grafana/Loki. Use when given a job URL from hyper-ai platform, or when asked to diagnose why a training job failed. Trigger words include job URL, training failed, job failure, diagnose job, 训练失败, 任务失败, 诊断任务, 为什么失败.
+description: 从 Grafana/Loki 拉取日志，诊断失败或异常的 HPC 训练任务。适用于收到任务 URL、或被要求分析训练失败原因。
 ---
 
 # Job Failure Diagnosis via Grafana
@@ -138,7 +138,7 @@ lsof -i :1080 2>/dev/null | grep ssh
 # 如果没有运行：
 # ssh -D 1080 -N -f -o ServerAliveInterval=60 -o ServerAliveCountMax=3 root@10.169.128.46
 
-python3 .claude/skills/job-failure-diagnosis/scripts/check_rdma_health.py \
+python3 .claude/skills/job-failure-diagnosis/scripts/check_node_health.py \
   --cluster hpc-prod-al-sh01 \
   --nodes e01-cn-xxx e01-cn-yyy e01-cn-zzz \
   --target-ip 200.33.8.30 \

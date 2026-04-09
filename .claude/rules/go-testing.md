@@ -1,3 +1,9 @@
+---
+description: Go 测试规范 — TDD、表驱动、envtest、race detection、覆盖率
+globs: "**/*_test.go"
+alwaysApply: false
+---
+
 # Go 测试规范
 
 ## TDD 工作流

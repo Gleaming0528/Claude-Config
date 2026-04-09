@@ -1,6 +1,6 @@
 ---
 name: training-log-diagnosis
-description: Use when diagnosing AI/ML training failures — crashes, hangs, performance degradation, or convergence issues. Trigger words include training log, loss, grad_norm, gradient explosion, training failed, training hang, GPU utilization, NCCL heartbeat, checkpoint, 训练日志, 分析日志, 梯度爆炸, 训练失败, 训练卡住.
+description: 分析 AI/ML 训练日志，诊断训练失败、训练卡住、性能下降、收敛异常。适用于排查训练 crash、梯度爆炸、GPU 利用率下降、NCCL heartbeat 超时。
 ---
 
 # Training Failure Diagnosis

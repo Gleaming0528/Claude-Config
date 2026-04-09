@@ -1,3 +1,9 @@
+---
+description: Python / SDK 环境 — 强制使用 workspace venv，禁止系统 Python
+globs: "**/*.py"
+alwaysApply: false
+---
+
 # Python / SDK 环境
 
 所有 Python 和 hyper-ai SDK 操作必须使用 workspace 的 venv：

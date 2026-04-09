@@ -1,6 +1,6 @@
 ---
 name: brainstorming
-description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+description: Explores user intent, requirements, and design through structured brainstorming. Use when starting any creative work — creating features, building components, adding functionality, or modifying behavior.
 ---
 
 # Brainstorming Ideas Into Designs
@@ -162,3 +162,31 @@ A question about a UI topic is not automatically a visual question. "What does p
 
 If they agree to the companion, read the detailed guide before proceeding:
 `skills/brainstorming/visual-companion.md`
+
+## 反合理化
+
+| 借口 | 现实 |
+|------|------|
+| "需求很明确，不需要 brainstorm" | 用户说"加个按钮"可能意味着新功能、新页面、新 API。花 2 分钟确认意图，避免做错 2 小时的活。 |
+| "先写代码，有问题再改" | 代码写完发现方向错了，重写成本远高于事前 5 分钟对齐。 |
+| "用户已经给了完整需求" | 完整需求 ≠ 没有歧义。边界情况、错误处理、与现有功能的交互，这些通常不在"完整需求"里。 |
+| "Brainstorm 太慢了，快速迭代更好" | 快速迭代的前提是方向正确。brainstorm 确保你迭代在正确的方向上。 |
+| "我理解用户想要什么" | 理解 ≠ 确认。说出来让用户看到你的理解，比自己觉得理解了可靠得多。 |
+
+## Red Flags
+
+- 收到需求后没有任何澄清问题就开始编码
+- 没有确认用户意图就假设了实现方案
+- 跳过了设计阶段直接进入实现
+- 用户说"不是这个意思"——说明 brainstorm 不充分
+- 多次返工同一个功能——说明前期理解不到位
+
+## 验证清单
+
+Brainstorm 完成后确认：
+
+- [ ] 用户意图已明确（不是你的假设，是用户确认的）
+- [ ] 关键约束和边界条件已识别
+- [ ] 方案已与用户对齐（不是你单方面决定的）
+- [ ] 与现有功能的交互已考虑
+- [ ] 可以清晰地向下一步（plan / 实现）传递上下文

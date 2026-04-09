@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: Creates structured implementation plans from specs or requirements. Use when you have a spec or requirements for a multi-step task, before touching code.
 ---
 
 # Writing Plans
@@ -150,3 +150,33 @@ After saving the plan, offer execution choice:
 **If Inline Execution chosen:**
 - **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
 - Batch execution with checkpoints for review
+
+## 反合理化
+
+| 借口 | 现实 |
+|------|------|
+| "需求很清楚，不用写 plan 直接开干" | 写 plan 暴露你没想到的依赖和边界情况。跳过 plan = 在编码中做 plan，代价高 10 倍。 |
+| "Plan 写太细浪费时间" | Plan 的粒度决定了执行的可控性。"实现用户管理"不是任务，"创建 User 表 + CRUD API"才是。 |
+| "边做边想更灵活" | 边做边想 = 边做边返工。Plan 不是枷锁，是你未来执行的导航。 |
+| "任务之间没有依赖，随便排" | 没有显式依赖不代表没有隐式依赖。API 类型定义必须在 handler 之前。排序很重要。 |
+| "Plan 太长了，先做几个再说" | Plan 的价值在于全局视角。只看前三步 = 盲人摸象。全部列出，然后分批执行。 |
+
+## Red Flags
+
+- 没有 plan 就开始编码
+- Plan 中的任务粒度过大（单个任务 > 200 行代码）
+- 任务之间没有明确的依赖关系和执行顺序
+- Plan 没有验收标准（怎么判断任务完成？）
+- Plan 写完后直接全部执行，没有分批 review
+- Plan 中的假设没有在开始前验证
+
+## 验证清单
+
+Plan 完成后确认：
+
+- [ ] 每个任务都足够小（可在单次执行中完成）
+- [ ] 每个任务有明确的验收标准
+- [ ] 任务之间的依赖关系已标注
+- [ ] 执行顺序合理（依赖在前，消费在后）
+- [ ] Plan 已保存到文件，可被执行技能引用
+- [ ] 已提供执行方式选择（Subagent-Driven / Inline）

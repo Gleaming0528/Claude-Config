@@ -1,6 +1,6 @@
 ---
 name: golang-patterns
-description: Idiomatic Go patterns and best practices for HPC platform backend development. Covers error handling, concurrency, interfaces, Gin handlers, and K8s client-go.
+description: Provides idiomatic Go patterns and best practices for HPC platform backend development. Use when writing Go code or needing guidance on error handling, concurrency, interfaces, Gin handlers, or K8s client-go.
 ---
 
 # Go Development Patterns
@@ -414,3 +414,71 @@ func (c Counter) Value() int  { return c.n }
 func (c *Counter) Increment() { c.n++ }
 // Pick one and be consistent
 ```
+
+## API 设计原则
+
+### 契约先行
+
+先定义 API 类型契约，再写实现。让编译器和测试成为契约守护者。
+
+```go
+// 先定义请求/响应类型
+type CreateInferenceRequest struct {
+    Name      string `json:"name" binding:"required"`
+    ModelPath string `json:"modelPath" binding:"required"`
+    Replicas  int    `json:"replicas" binding:"min=1,max=10"`
+}
+
+type CreateInferenceResponse struct {
+    ID     string `json:"id"`
+    Status string `json:"status"`
+}
+```
+
+### 一致的错误语义
+
+所有 handler 统一错误响应格式，不混用。
+
+```go
+// 一个入口点，一种错误风格
+func (h *Handler) CreateInference(c *gin.Context) {
+    var req CreateInferenceRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        common.BadRequest(c, err.Error()) // 400
+        return
+    }
+    result, err := h.service.Create(c.Request.Context(), &req)
+    if err != nil {
+        if errors.Is(err, ErrAlreadyExists) {
+            common.Conflict(c, err.Error()) // 409
+            return
+        }
+        common.InternalError(c, err)        // 500
+        return
+    }
+    c.JSON(http.StatusCreated, result)       // 201, not 200
+}
+```
+
+### 边界验证
+
+所有外部输入在 handler 层做校验，service 层假设输入已验证。
+
+```go
+// Handler: 边界校验
+if req.Replicas < 1 || req.Replicas > 10 {
+    common.BadRequest(c, "replicas must be between 1 and 10")
+    return
+}
+
+// Service: 不再重复校验，直接使用
+func (s *Service) Create(ctx context.Context, req *CreateInferenceRequest) (*Inference, error) {
+    // req 已经校验过
+}
+```
+
+### 版本与兼容性
+
+- 添加字段是安全的，删除/改名字段是破坏性的
+- 新增可选字段用 `omitempty`：`json:"newField,omitempty"`
+- 永远不要把内部结构体直接当 API 响应——使用显式的 Response DTO

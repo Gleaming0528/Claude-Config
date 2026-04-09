@@ -1,6 +1,6 @@
 ---
-name: generate-tasks
-description: 将需求或 PRD 拆解为可执行的开发任务列表。当用户提到任务拆解、拆分任务、break down、generate tasks、PRD 转任务、需求拆解、工作拆分、实现步骤 时自动激活。
+name: pm-generate-tasks
+description: 将需求或 PRD 拆解为可执行的开发任务列表。适用于任务拆解、需求拆解、PRD 转任务、工作拆分。
 ---
 
 # Generating a Task List from User Requirements

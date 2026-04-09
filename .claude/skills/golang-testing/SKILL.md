@@ -1,6 +1,6 @@
 ---
 name: golang-testing
-description: Go testing patterns including table-driven tests, subtests, benchmarks, fuzzing, HTTP handler testing, and interface mocking. Follows TDD with idiomatic Go practices.
+description: Drives Go development with tests using table-driven patterns, subtests, benchmarks, fuzzing, and HTTP handler testing. Use when writing tests, adding coverage, or following TDD in Go projects.
 ---
 
 # Go Testing Patterns
@@ -335,3 +335,40 @@ go test -short ./...                   # Skip long tests
 - Ignore flaky tests
 - Mock everything (prefer integration tests when feasible)
 - Skip error path testing
+
+## 反合理化
+
+| 借口 | 现实 |
+|------|------|
+| "之后再补测试" | 不会补的。事后写的测试倾向于验证实现细节而非行为，且覆盖率永远赶不上。 |
+| "这个函数太简单了不用测" | 简单函数会变复杂。测试记录的是**期望行为**，不是代码复杂度。 |
+| "手动测过了，能跑" | 手动测试不可重复、不可回归。明天的改动可能悄悄打破今天的行为。 |
+| "测试拖慢开发速度" | 测试现在慢你 5 分钟，之后每次改动省你 2 小时的排查。TDD 是投资，不是开销。 |
+| "mock 太多太麻烦" | 如果需要 mock 5 个依赖才能测一个函数，说明函数职责过重。难 mock = 设计问题。 |
+| "这是 controller 代码，不好测" | Gin handler 用 `httptest.NewRecorder()` + `gin.CreateTestContext()` 就能测。没有"不好测"的代码，只有耦合过紧的设计。 |
+| "error path 不重要" | 生产环境 80% 的 bug 在 error path 上。happy path 能跑 ≠ 代码正确。 |
+| "CI 上跑就行了，本地不用跑" | CI 反馈慢。`go test ./...` 本地跑 2 秒，CI 等 5 分钟。先本地验证再 push。 |
+
+## Red Flags
+
+- 新增函数/方法没有对应的 `_test.go` 文件
+- 修复 bug 时没有先写复现测试
+- 测试名称是 `TestFunc1`、`TestIt` 等无意义命名
+- 测试中使用 `time.Sleep()` 做同步
+- 跳过 `-race` 检查提交并发代码
+- 整个 package 没有任何测试文件
+- 测试中 mock 了所有依赖（过度 mock 信号）
+- `t.Skip()` 被用来"临时"跳过失败测试——临时 = 永久
+- 测试只验证 happy path，error case 全部缺失
+
+## 验证清单
+
+完成代码实现后确认：
+
+- [ ] 每个新函数/方法都有对应测试
+- [ ] Bug 修复包含复现测试（修复前 FAIL，修复后 PASS）
+- [ ] `go test ./...` 全部通过
+- [ ] `go test -race ./...` 无 race condition
+- [ ] 测试名描述了被验证的行为（不是实现细节）
+- [ ] error path 有测试覆盖
+- [ ] 测试覆盖率未下降：`go test -cover ./...`

@@ -1,10 +1,6 @@
 ---
 name: hyper-ai-sdk
-description: >-
-  Hyper-AI 超算平台 SDK 完整能力参考。当需要操作训练任务、开发环境、
-  推理服务、数据集、模型、镜像、数据卷、代码仓库、队列、Pipeline 等资源时自动激活。
-  触发词：hyper-ai、hi、训练任务、开发环境、推理服务、数据集、模型、队列、
-  GPU、集群、namespace、镜像、数据卷、代码仓库、上传、下载、预览、workspace。
+description: Hyper-AI 超算平台 SDK 完整能力参考。适用于操作训练任务、开发环境、推理服务、数据集、模型、镜像、数据卷、代码仓库、队列、Pipeline 等资源。
 ---
 
 # Hyper-AI SDK 能力参考

@@ -1,10 +1,12 @@
 ---
-description: Go Kubernetes Controller 开发规范
+description: Go Kubernetes Controller 开发规范（实现细节）
 globs: "**/*.go"
 alwaysApply: false
 ---
 
 # Go Controller 规范
+
+跨模块的 CRD 状态机、子资源命名、错误码等**平台约定**见 `cross-module.md`。本文件聚焦 Controller **代码实现**细节。
 
 ## Reconciler 结构
 
@@ -14,7 +16,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
     if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
         return ctrl.Result{}, client.IgnoreNotFound(err)
     }
-    // 分阶段 reconcile 子资源
+    // 分阶段 reconcile 子资源（命名约定见 cross-module.md）
     if err := r.reconcilePVC(ctx, obj); err != nil {
         return ctrl.Result{}, err
     }
@@ -39,10 +41,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 ```go
 // ❌ 在 Reconcile 里 Sleep 等待
-func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-    time.Sleep(10 * time.Second) // 阻塞整个 worker
-    // ...
-}
+time.Sleep(10 * time.Second) // 阻塞整个 worker
 // ✅ 用 RequeueAfter
 return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 
@@ -54,15 +53,12 @@ r.Update(ctx, obj) // Status 不会被更新
 r.Update(ctx, obj)           // 只改 Spec
 r.Status().Update(ctx, obj)  // 只改 Status
 
-// ❌ 在 Reconcile 里裸 panic 或 log.Fatal
-if err != nil {
-    log.Fatal("无法创建资源") // 整个进程崩掉
-}
-// ✅ 返回 error，让 controller-runtime 处理重试
+// ❌ 裸 panic 或 log.Fatal
+log.Fatal("无法创建资源") // 整个进程崩掉
+// ✅ 返回 error
 return ctrl.Result{}, fmt.Errorf("创建资源失败: %w", err)
 
-// ❌ 不设 OwnerReference，导致资源泄漏
-deployment := &appsv1.Deployment{...}
+// ❌ 不设 OwnerReference
 r.Create(ctx, deployment)
 // ✅ 设置 OwnerReference
 controllerutil.SetControllerReference(obj, deployment, r.Scheme)

@@ -1,6 +1,6 @@
 ---
 name: hpc-k8s-deploy
-description: Use when working with K8s deployment, Kustomize overlays, CRDs, config.yaml, or release manifests in HPC projects. Trigger words include deploy, kustomize, overlay, CRD, config.yaml, release, k8s, manifest, environment, cluster, prod, test, 部署, 发布, 环境, 集群.
+description: 管理 K8s 部署流程，包括 Kustomize overlay、CRD、发布清单。适用于部署、配置环境、或操作 HPC 项目的集群资源。
 ---
 
 # HPC K8s 部署规范

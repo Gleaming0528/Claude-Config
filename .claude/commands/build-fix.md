@@ -1,29 +1,25 @@
+---
+description: 增量修复构建错误（Go + TypeScript）
+---
+
 # Build and Fix
 
-Incrementally fix TypeScript and build errors:
+增量修复构建错误，支持 Go 和 TypeScript 项目：
 
-1. Run build: npm run build or pnpm build
+1. **检测项目类型**并运行构建：
+   - Go 项目：`go build ./...`
+   - 前端项目：`npm run build` 或 `pnpm build`
 
-2. Parse error output:
-   - Group by file
-   - Sort by severity
+2. **逐个修复错误**：
+   - 按文件分组，按严重度排序
+   - 展示错误上下文（前后 5 行）
+   - 提出修复方案 → 应用 → 重新构建 → 验证
 
-3. For each error:
-   - Show error context (5 lines before/after)
-   - Explain the issue
-   - Propose fix
-   - Apply fix
-   - Re-run build
-   - Verify error resolved
+3. **停止条件**：
+   - 修复引入新错误
+   - 同一错误尝试 3 次仍失败
+   - 用户要求暂停
 
-4. Stop if:
-   - Fix introduces new errors
-   - Same error persists after 3 attempts
-   - User requests pause
-
-5. Show summary:
-   - Errors fixed
-   - Errors remaining
-   - New errors introduced
+4. **输出报告**：已修复 / 剩余 / 新引入的错误数量
 
 Fix one error at a time for safety!

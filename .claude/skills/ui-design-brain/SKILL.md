@@ -1,7 +1,6 @@
 ---
 name: ui-design-brain
-description: 基于 60+ 组件最佳实践生成生产级 UI。当用户提到设计页面、UI 设计、设计组件、build UI、创建页面、dashboard 设计、表单设计、导航设计、设计系统、页面布局、组件设计、空状态设计、LOGO 设计、登录页设计 时自动激活。
-license: Complete terms in LICENSE.txt
+description: 基于 60+ 组件最佳实践生成生产级 UI。适用于设计页面、UI 设计、组件设计、表单设计、dashboard 设计、导航设计。
 ---
 
 # UI Design Brain

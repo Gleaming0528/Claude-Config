@@ -1,6 +1,6 @@
 ---
 name: hpc-weekly-report
-description: HPC 超算平台团队周报生成。自动采集 git 提交 + Grafana GPU 实时数据 + 预算数据 + 发布记录，结合用户补充的业务上下文，生成给老板看的团队周报。当用户提到周报、写周报、生成周报、本周总结、weekly report 时自动激活。
+description: 采集 git 提交、Grafana GPU 数据、预算数据和发布记录，生成团队周报。适用于写周报、生成周报、本周总结。
 ---
 
 # HPC 超算平台团队周报

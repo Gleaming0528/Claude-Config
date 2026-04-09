@@ -1,6 +1,6 @@
 ---
 name: hyper-ai-install
-description: Hyper-AI Python SDK 安装和配置引导。当用户提到安装 SDK、配置 CLI、hai 命令不可用、pip install hyper-ai、SDK 初始化、怎么用 SDK、hyper-ai setup、SDK 入门 时自动激活。
+description: 引导 Hyper-AI Python SDK 的安装和配置。适用于安装 SDK、配置 CLI、hai 命令不可用、SDK 初始化。
 ---
 
 # Hyper-AI SDK/CLI 安装与配置

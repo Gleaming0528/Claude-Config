@@ -1,6 +1,6 @@
 ---
 name: writing-skills
-description: Use when creating new skills, editing existing skills, or verifying skills work before deployment
+description: Guides creation and validation of new agent skills. Use when creating new skills, editing existing skills, or verifying skills work before deployment.
 ---
 
 # Writing Skills

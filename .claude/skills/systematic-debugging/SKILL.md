@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes
+description: Guides systematic root-cause analysis through structured triage. Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes.
 ---
 
 # Systematic Debugging
@@ -294,3 +294,14 @@ From debugging sessions:
 - Random fixes approach: 2-3 hours of thrashing
 - First-time fix rate: 95% vs 40%
 - New bugs introduced: Near zero vs common
+
+## 验证清单
+
+修复完成后确认：
+
+- [ ] 根因已定位并记录（不是"改了就好了"）
+- [ ] 修复针对根因，而非症状
+- [ ] 有回归测试：修复前 FAIL，修复后 PASS
+- [ ] 全量测试通过
+- [ ] 构建成功
+- [ ] 原始故障场景已端到端验证

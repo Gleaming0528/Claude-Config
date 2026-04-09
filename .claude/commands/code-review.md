@@ -1,40 +1,7 @@
-# Code Review
+---
+description: 调用 code-reviewer agent 对未提交变更做安全与质量审查
+---
 
-Comprehensive security and quality review of uncommitted changes:
+调用 **code-reviewer** agent（`.claude/agents/code-reviewer.md`）审查当前未提交的变更。
 
-1. Get changed files: git diff --name-only HEAD
-
-2. For each changed file, check for:
-
-**Security Issues (CRITICAL):**
-- Hardcoded credentials, API keys, tokens
-- SQL injection vulnerabilities
-- XSS vulnerabilities  
-- Missing input validation
-- Insecure dependencies
-- Path traversal risks
-
-**Code Quality (HIGH):**
-- Functions > 50 lines
-- Files > 800 lines
-- Nesting depth > 4 levels
-- Missing error handling
-- console.log statements
-- TODO/FIXME comments
-- Missing JSDoc for public APIs
-
-**Best Practices (MEDIUM):**
-- Mutation patterns (use immutable instead)
-- Emoji usage in code/comments
-- Missing tests for new code
-- Accessibility issues (a11y)
-
-3. Generate report with:
-   - Severity: CRITICAL, HIGH, MEDIUM, LOW
-   - File location and line numbers
-   - Issue description
-   - Suggested fix
-
-4. Block commit if CRITICAL or HIGH issues found
-
-Never approve code with security vulnerabilities!
+agent 会自动按文件类型路由到 Go 或 Frontend 专项清单，输出分级问题报告（CRITICAL/HIGH/MEDIUM），并给出 Approve / Warning / Block 结论。

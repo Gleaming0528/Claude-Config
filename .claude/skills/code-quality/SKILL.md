@@ -1,6 +1,6 @@
 ---
 name: code-quality
-description: 代码质量感知 + GC 垃圾回收。被动模式自动浮出质量数据；主动模式（/gc）对子项目执行结构性清理。触发词包括 code quality, 代码质量, lint, cleanup, 清理代码, 技术债, tech debt, 质量评分, quality score, 代码体检, gc, 垃圾回收, refactor suggestion, 重构建议。
+description: 浮出代码质量指标并执行结构性清理。适用于检查代码健康度、排查技术债、或对子项目执行 /gc 垃圾回收。
 ---
 
 # Code Quality — 代码质量感知 + GC

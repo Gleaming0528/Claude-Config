@@ -1,6 +1,6 @@
 ---
 name: doc-gardening
-description: 文档自动园丁。代码变更后自动同步文档引用，也可全量扫描仓库文档新鲜度。触发词包括 refactor, 重构, 重命名, rename, move, 移动文件, 删除文件, 目录调整, 更新文档, sync docs, 文档同步, doc update, 文档过时, stale docs, 架构变更, doc freshness, 文档检查, 全量扫描文档。
+description: 代码变更后自动同步文档引用，扫描仓库文档新鲜度。适用于重构、重命名、移动文件、删除文件、或检查文档是否过时。
 ---
 
 # Doc Gardening — 文档自动园丁

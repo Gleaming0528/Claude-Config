@@ -1,6 +1,6 @@
 ---
 name: receiving-code-review
-description: Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation
+description: Processes code review feedback with technical rigor and verification. Use when receiving review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable.
 ---
 
 # Code Review Reception
@@ -203,6 +203,36 @@ You understand 1,2,3,6. Unclear on 4,5.
 ## GitHub Thread Replies
 
 When replying to inline review comments on GitHub, reply in the comment thread (`gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`), not as a top-level PR comment.
+
+## 反合理化
+
+| 借口 | 现实 |
+|------|------|
+| "Reviewer 是 senior，他说的肯定对" | Senior 也会犯错，尤其是不了解上下文时。验证是尊重，盲从是失职。 |
+| "先改了再说，不想争论" | 不经验证的改动可能引入新 bug。争论不是目的，技术正确性是。 |
+| "Feedback 太多了，一次全改掉" | 批量改动不经逐个测试，很容易引入回归。一个一个改，每个都测。 |
+| "这条 feedback 看起来不重要，跳过" | 跳过前先判断严重性。没有标签的 feedback 需要主动询问优先级。 |
+| "反正会被合并的，快速改完就行" | 快速改完 ≠ 正确改完。review 是质量门禁，不是形式流程。 |
+
+## Red Flags
+
+- 收到 feedback 后不加验证就实现
+- 对所有 feedback 表示"你说得对"（performative agreement）
+- 一次性实现所有 feedback 改动但不逐个测试
+- 有不理解的 feedback 但没有提问就开始实现
+- 与用户之前的架构决策冲突但没有上报
+- push back 时没有技术依据，只是"我觉得不用改"
+
+## 验证清单
+
+处理完所有 review feedback 后确认：
+
+- [ ] 每条 feedback 已分类（Blocking / Important / Minor）
+- [ ] 不理解的条目已澄清
+- [ ] 每条改动已单独测试
+- [ ] 需要 push back 的已提供技术依据
+- [ ] 全量测试通过，无回归
+- [ ] 已在 review thread 中逐条回复处理结果
 
 ## The Bottom Line
 

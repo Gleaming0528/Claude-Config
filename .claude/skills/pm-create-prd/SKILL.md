@@ -1,6 +1,6 @@
 ---
-name: create-prd
-description: 生成产品需求文档（PRD）。当用户提到写 PRD、需求文档、功能需求、产品需求、feature spec、需求定义、功能规格、create PRD、write requirements 时自动激活。
+name: pm-create-prd
+description: 生成产品需求文档（PRD）。适用于定义新功能、写需求文档、创建功能规格。
 ---
 
 # Generating a Product Requirements Document (PRD)

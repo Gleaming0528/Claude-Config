@@ -34,7 +34,7 @@ When creating PRs:
    - Break down into phases
 
 2. **TDD Approach**
-   - Use **tdd-guide** agent
+   - 参考 skill: `test-driven-development`
    - Write tests first (RED)
    - Implement to pass tests (GREEN)
    - Refactor (IMPROVE)

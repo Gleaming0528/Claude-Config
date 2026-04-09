@@ -32,9 +32,9 @@ Phase 命名约定：
 - 所有 Phase 变更必须同时更新 `LastUpdateTime`
 - Status 必须携带 `Message` 和 `Reason` 字段辅助排障
 
-## Reconciler 子资源模式
+## Reconciler 子资源约定
 
-所有 Controller 遵循统一的 reconcile 子资源模式：
+所有 Controller 遵循统一的子资源 reconcile 顺序和命名：
 
 ```
 Reconcile → Get CR → 处理删除/Finalizer
@@ -42,13 +42,13 @@ Reconcile → Get CR → 处理删除/Finalizer
   → reconcileDeployment/StatefulSet
   → reconcileService
   → reconcileVirtualService (如需)
-  → syncStatus
+  → syncStatus（永远最后）
 ```
 
-铁律：
 - 子资源 reconcile 函数命名统一：`reconcile<ResourceKind>`
-- syncStatus 永远是最后一步，聚合所有子资源状态
 - 子资源创建必须设 OwnerReference
+
+Controller 代码实现细节（文件拆分、RequeueAfter、Status 更新等）见 `go-controller.md`。
 
 ## API 错误码约定
 
