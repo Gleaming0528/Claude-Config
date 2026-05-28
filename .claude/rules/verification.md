@@ -7,13 +7,8 @@ alwaysApply: true
 
 **Iron Law: No completion claims without fresh verification evidence.**
 
-1. **Identify** — What command proves this claim?
-2. **Run** — Execute the FULL command (fresh, complete)
-3. **Read** — Full output, check exit code, count failures
-4. **Verify** — Does output confirm the claim?
+Run the command → Read full output → Confirm claim — skip any step = lying.
 
-Forbidden phrases (without evidence): "Should work now", "Looks correct", "Should be fine", "Done".
+Forbidden: "Should work now", "Looks correct", "Done" (without evidence).
 
-Confidence ≠ evidence. Agent/subagent reports success → must verify independently.
-
-详细流程、反合理化、Red Flags 参考 skill: `verification-before-completion`。
+详细流程、验证模式、反合理化见 skill: `verification-before-completion`。

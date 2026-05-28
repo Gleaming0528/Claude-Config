@@ -1,6 +1,6 @@
 ---
 name: hyper-ai-install
-description: 引导 Hyper-AI Python SDK 的安装和配置。适用于安装 SDK、配置 CLI、hai 命令不可用、SDK 初始化。
+description: 引导 Hyper-AI Python SDK 的安装和配置。适用于安装 SDK、配置 CLI、hi 命令不可用、SDK 初始化。
 ---
 
 # Hyper-AI SDK/CLI 安装与配置
@@ -27,7 +27,8 @@ pip install -e .
 ```
 
 安装后会自动注册两个 CLI 命令：
-- `hai` — 新版 noun-verb CLI（推荐）
+
+- `hi` — 新版 noun-verb CLI（推荐）
 - `hpc` — 旧版兼容 CLI
 
 ### Step 2: 认证配置
@@ -39,7 +40,7 @@ pip install -e .
 export HYPER_AI_TOKEN="<your-token>"
 
 # 方式 2：CLI 命令
-hai config set-token <your-token>
+hi config set-token <your-token>
 
 # 方式 3：配置文件
 # 编辑 ~/.config/hpc/config.toml
@@ -53,10 +54,10 @@ Token 获取方式：登录 https://hyper-ai.hellorobotaxi.top → 右上角头�
 
 ```bash
 # 切换环境
-hai config set-env prod    # 生产环境（默认）
-hai config set-env test    # 测试环境
+hi config set-env prod    # 生产环境（默认）
+hi config set-env test    # 测试环境
 
-# 设置默认命名空间（避免每次 -ns）
+# 设置默认命名空间（避免每次写 namespace/name 或 -n）
 export HYPER_AI_NAMESPACE="ad-perception"
 ```
 
@@ -64,16 +65,16 @@ export HYPER_AI_NAMESPACE="ad-perception"
 
 ```bash
 # 检查版本
-hai version
+hi version
 
 # 检查配置
-hai config show
+hi config show
 
 # 验证连通性（列出命名空间）
-hai namespace list
+hi namespace list
 
 # 列出任务（验证权限）
-hai job list -ns ad-perception
+hi job list ad-perception
 ```
 
 ## SDK 快速上手
@@ -103,54 +104,60 @@ for line in ns.jobs.follow("train-v3"):
     print(line)
 
 # 极简模式
-import hyper_ai as hai
-job = hai.train("ad-perception", "train-v3",
+import hyper_ai as hi
+job = hi.train("ad-perception", "train-v3",
     queue="default", spec="gpu-a100-8",
     image="train:v3", command="torchrun train.py")
 ```
 
 ## CLI 命令速查
 
-| 资源 | 命令 | 说明 |
-|------|------|------|
-| 训练任务 | `hai job list\|get\|create\|stop\|delete\|logs\|priority` | 全生命周期管理 |
-| 开发环境 | `hai devspace list\|get\|create\|start\|stop\|delete` | GPU 工作站 |
-| 推理服务 | `hai inference list\|get\|create\|scale\|delete` | 模型部署 |
-| TensorBoard | `hai tb list\|get\|create\|delete` | 训练可视化 |
-| 数据集 | `hai dataset list\|get\|create\|delete + version` | 版本化数据 |
-| 模型 | `hai model list\|get\|create\|delete + version` | 版本化模型 |
-| 队列 | `hai queue list\|get\|specs` | 资源规格查询 |
-| Pipeline | `hai pipeline list\|get\|cancel\|delete` | 工作流 |
-| 命名空间 | `hai namespace list\|get` | 团队组织 |
-| 配置 | `hai config show\|set-env\|set-token` | SDK 配置 |
+| 资源        | 命令                                                     | 说明           |
+| ----------- | -------------------------------------------------------- | -------------- |
+| 训练任务    | `hi job list\|get\|create\|stop\|delete\|logs\|priority` | 全生命周期管理 |
+| 开发环境    | `hi devspace list\|get\|create\|start\|stop\|delete`     | GPU 工作站     |
+| 推理服务    | `hi inference list\|get\|create\|scale\|delete`          | 模型部署       |
+| TensorBoard | `hi tb list\|get\|create\|delete`                        | 训练可视化     |
+| 数据集      | `hi dataset list\|get\|create\|delete + version`         | 版本化数据     |
+| 模型        | `hi model list\|get\|create\|delete + version`           | 版本化模型     |
+| 队列        | `hi queue list\|get\|specs`                              | 资源规格查询   |
+| Pipeline    | `hi pipeline list\|get\|cancel\|delete`                  | 工作流         |
+| 命名空间    | `hi namespace list\|get`                                 | 团队组织       |
+| 配置        | `hi config show\|set-env\|set-token`                     | SDK 配置       |
 
 ## 通用参数
 
-| 参数 | 说明 | 环境变量 |
-|------|------|----------|
-| `-ns` / `--namespace` | 命名空间 | `HYPER_AI_NAMESPACE` |
-| `-o json` | JSON 输出 | — |
-| `-y` / `--yes` | 跳过删除确认 | — |
-| `--page` / `--page-size` | 分页 | — |
+| 参数                     | 说明         | 环境变量             |
+| ------------------------ | ------------ | -------------------- |
+| `-ns` / `--namespace`    | 命名空间     | `HYPER_AI_NAMESPACE` |
+| `-o json`                | JSON 输出    | —                    |
+| `-y` / `--yes`           | 跳过删除确认 | —                    |
+| `--page` / `--page-size` | 分页         | —                    |
 
 ## 常见问题
 
 ### Token 过期
+
 ```
 AuthenticationError: 认证失败
 ```
-**解决**：重新获取 Token 并设置 `hai config set-token <new-token>`
+
+**解决**：重新获取 Token 并设置 `hi config set-token <new-token>`
 
 ### 模块找不到
+
 ```
 ModuleNotFoundError: No module named 'hyper_ai'
 ```
+
 **解决**：确认安装了正确的 Python 环境，运行 `pip install hyper-ai --extra-index-url https://gitlab.hellorobotaxi.top/api/v4/projects/16/packages/pypi/simple`
 
 ### 命名空间权限
+
 ```
 RequestError: 权限不足
 ```
+
 **解决**：确认当前用户有该命名空间的访问权限，联系管理员授权
 
 ## Agent 集成指南

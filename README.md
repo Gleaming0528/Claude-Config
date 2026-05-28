@@ -76,6 +76,7 @@ Skills → 专业深度（按关键词按需加载，方法论 + 工作流）
 | go-reviewer | Go 专项：惯用写法、Gin、client-go、并发、错误处理 |
 | frontend-reviewer | 前端专项：React、TS、Zustand、Axios、无障碍 |
 | code-simplifier | 代码简化（Chesterton's Fence 原则），保持功能不变 |
+| codebase-auditor | 子项目整体审计：命名一致性、重复代码、错误处理风格统一、批量修复 |
 | planner | 功能规划、需求拆解、复杂重构方案 |
 
 ---
@@ -106,7 +107,7 @@ Skills → 专业深度（按关键词按需加载，方法论 + 工作流）
 | hpc-release | 发布、tag、版本 | Submodule 发版流程 |
 | hpc-training-diagnosis | NCCL、GPU 错误、训练 hang | 平台级训练故障深度诊断 |
 | hpc-weekly-report | 周报、本周总结 | 团队周报自动生成 |
-| hyper-ai-sdk | hyper-ai、hai、SDK | SDK API 参考 |
+| hyper-ai-sdk | hyper-ai、hi、SDK | SDK API 参考 |
 | hyper-ai-install | 安装 SDK、配置 CLI | SDK 安装配置 |
 | job-failure-diagnosis | 训练失败、任务失败 | Grafana/Loki 日志诊断 |
 | k8s-proxy-tunnel | kubectl、helm、集群 | SSH 代理访问 K8s |

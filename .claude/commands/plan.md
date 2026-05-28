@@ -36,57 +36,36 @@ The planner agent will:
 ## Example Usage
 
 ```
-User: /plan I need to add real-time notifications when markets resolve
+User: /plan 给训练任务添加自动 checkpoint 恢复功能
 
 Agent (planner):
-# Implementation Plan: Real-Time Market Resolution Notifications
+# Implementation Plan: 训练任务自动 Checkpoint 恢复
 
 ## Requirements Restatement
-- Send notifications to users when markets they're watching resolve
-- Support multiple notification channels (in-app, email, webhook)
-- Ensure notifications are delivered reliably
-- Include market outcome and user's position result
+- 训练任务失败后自动检测最新可用 checkpoint
+- 从最近的有效 checkpoint 恢复训练，无需用户手动干预
+- 支持 DeepSpeed 和 PyTorch 原生 checkpoint 格式
 
 ## Implementation Phases
 
-### Phase 1: Database Schema
-- Add notifications table with columns: id, user_id, market_id, type, status, created_at
-- Add user_notification_preferences table for channel preferences
-- Create indexes on user_id and market_id for performance
+### Phase 1: Checkpoint 探测
+- 在 Controller 中添加 checkpoint 路径探测逻辑
+- 校验 checkpoint 完整性（文件大小、元数据一致性）
+- 选择最新有效 checkpoint
 
-### Phase 2: Notification Service
-- Create notification service in lib/notifications.ts
-- Implement notification queue using BullMQ/Redis
-- Add retry logic for failed deliveries
-- Create notification templates
+### Phase 2: CRD 扩展
+- Status 中增加 LastCheckpoint、RecoveryCount 字段
+- 定义恢复策略（最大重试次数、退避间隔）
 
-### Phase 3: Integration Points
-- Hook into market resolution logic (when status changes to "resolved")
-- Query all users with positions in market
-- Enqueue notifications for each user
-
-### Phase 4: Frontend Components
-- Create NotificationBell component in header
-- Add NotificationList modal
-- Implement real-time updates via Supabase subscriptions
-- Add notification preferences page
-
-## Dependencies
-- Redis (for queue)
-- Email service (SendGrid/Resend)
-- Supabase real-time subscriptions
+### Phase 3: Reconciler 集成
+- Failed → Pending 状态回退逻辑（携带 checkpoint 路径）
+- 注入恢复环境变量到 Pod spec
 
 ## Risks
-- HIGH: Email deliverability (SPF/DKIM required)
-- MEDIUM: Performance with 1000+ users per market
-- MEDIUM: Notification spam if markets resolve frequently
-- LOW: Real-time subscription overhead
+- HIGH: checkpoint 损坏导致恢复后立即再次失败（需要最大重试限制）
+- MEDIUM: 多节点 checkpoint 一致性校验耗时
 
 ## Estimated Complexity: MEDIUM
-- Backend: 4-6 hours
-- Frontend: 3-4 hours
-- Testing: 2-3 hours
-- Total: 9-13 hours
 
 **WAITING FOR CONFIRMATION**: Proceed with this plan? (yes/no/modify)
 ```

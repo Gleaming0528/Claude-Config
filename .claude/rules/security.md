@@ -1,41 +1,24 @@
 ---
-description: Security guidelines — secrets, SQL injection, XSS, CSRF, rate limiting
+description: Security guidelines — cross-language security principles and response protocol
 alwaysApply: true
 ---
 
 # Security Guidelines
 
-## Mandatory Security Checks
+## 提交前必检
 
-Before ANY commit:
-- [ ] No hardcoded secrets (API keys, passwords, tokens)
-- [ ] All user inputs validated
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] XSS prevention (sanitized HTML)
-- [ ] CSRF protection enabled
-- [ ] Authentication/authorization verified
-- [ ] Rate limiting on all endpoints
-- [ ] Error messages don't leak sensitive data
+- [ ] 无硬编码密钥（API key、password、token）
+- [ ] 所有用户输入已校验
+- [ ] 错误消息不泄露敏感数据
+- [ ] 认证/授权已验证
 
-## Secret Management
-
-```typescript
-// NEVER: Hardcoded secrets
-const apiKey = "sk-proj-xxxxx"
-
-// ALWAYS: Environment variables
-const apiKey = process.env.OPENAI_API_KEY
-
-if (!apiKey) {
-  throw new Error('OPENAI_API_KEY not configured')
-}
-```
+语言特定安全规则：Go 见 `go-security.md`，前端见 `react-frontend.md`。
 
 ## Security Response Protocol
 
-If security issue found:
-1. STOP immediately
-2. Use **code-reviewer** agent（会自动检查安全项）
-3. Fix CRITICAL issues before continuing
-4. Rotate any exposed secrets
-5. Review entire codebase for similar issues
+发现安全问题时：
+1. **立即停止**当前工作
+2. 用 **code-reviewer** agent 检查（自动包含安全项）
+3. CRITICAL 问题必须修复后才能继续
+4. 轮换已暴露的密钥
+5. 排查代码库中类似问题

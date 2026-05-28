@@ -1,26 +1,22 @@
 ---
 description: Python / SDK 环境 — 强制使用 workspace venv，禁止系统 Python
-globs: "**/*.py"
-alwaysApply: false
+alwaysApply: true
 ---
 
 # Python / SDK 环境
 
-所有 Python 和 hyper-ai SDK 操作必须使用 workspace 的 venv：
+所有 Python 和 hyper-ai SDK 操作必须使用 workspace 根目录下的 `.venv`。
 
-- **Python**: `/Users/gleaming/gitlab/workspace/.venv/bin/python3` (3.13)
-- **pip**: `/Users/gleaming/gitlab/workspace/.venv/bin/pip`
-- **CLI**: `/Users/gleaming/gitlab/workspace/.venv/bin/hi`（新版）、`/Users/gleaming/gitlab/workspace/.venv/bin/hpc`（旧版）
-
-执行 Python 脚本或 SDK 调用时，始终使用完整路径或先激活 venv：
+**查找 venv**：从当前工作目录向上查找 `.venv/bin/python3`，或直接使用 `$WORKSPACE_ROOT/.venv/bin/python3`。
 
 ```bash
-# 直接用完整路径
-/Users/gleaming/gitlab/workspace/.venv/bin/python3 script.py
-/Users/gleaming/gitlab/workspace/.venv/bin/hi inference list -ns infra-ms
+# 激活 venv（推荐）
+source "$(git rev-parse --show-toplevel)/.venv/bin/activate"
 
-# 或在 Shell 中激活
-source /Users/gleaming/gitlab/workspace/.venv/bin/activate
+# 或直接用完整路径
+.venv/bin/python3 script.py
+.venv/bin/hi inference list infra-ms
 ```
 
-禁止使用系统 `/usr/bin/python3`（3.9.6，缺少依赖）。
+- **禁止**使用系统 `/usr/bin/python3`（版本旧，缺少依赖）
+- CLI 工具：`hi`（新版）、`hpc`（旧版），均在 `.venv/bin/` 下

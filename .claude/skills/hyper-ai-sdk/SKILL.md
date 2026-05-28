@@ -1,11 +1,175 @@
 ---
 name: hyper-ai-sdk
-description: Hyper-AI 超算平台 SDK 完整能力参考。适用于操作训练任务、开发环境、推理服务、数据集、模型、镜像、数据卷、代码仓库、队列、Pipeline 等资源。
+description: >-
+  Use when 操作 Hyper-AI、hyper-ai、hi 资源，或处理训练任务、开发环境、
+  推理服务、数据集、模型、镜像、数据卷、代码仓库、队列、潮汐队列、Pipeline、
+  GPU、集群、namespace、K8s 事件、诊断、上传、下载、预览、workspace 等平台能力。
 ---
 
 # Hyper-AI SDK 能力参考
 
-> 自动生成，版本 0.0.0
+> 自动生成，版本 0.2.15
+
+## 端到端工作流
+
+### 提交训练任务
+
+```python
+from hyper_ai import HyperAI
+client = HyperAI()
+
+# 1. 确认队列和规格
+queues = client.queues.list(namespace='<ns>')
+specs = client.queues.specs('<队列名>')
+
+# 2. 确认镜像存在（必须来自 reg.hellorobotaxi.top）
+images = client.images.list(namespace='<ns>', name_like='<关键词>')
+
+# 3. 创建任务
+job = client.jobs.create(
+    namespace='<ns>', name='<任务名>',
+    queue='<队列>', spec='<规格>',
+    image='reg.hellorobotaxi.top/...',
+    command='torchrun train.py --data /mnt/data',
+    mounts=[
+        {'type': 'datasets', 'name': '<数据集>', 'version': 'v1', 'mountPath': '/mnt/data'},
+        {'type': 'models', 'name': '<模型集>', 'version': 'v1', 'mountPath': '/mnt/models'},
+    ],
+)
+
+# 4. 等待运行 + 跟踪日志
+client.jobs.wait_until_running('<ns>', job.name)
+for line in client.jobs.follow('<ns>', job.name):
+    print(line)
+```
+
+### 从 HuggingFace 导入模型/数据集
+
+```bash
+# 导入模型（数据集同理，换 dataset）
+hi model import-hf Qwen/Qwen2.5-7B -n <ns>
+hi model list <ns> --name-like Qwen        # 拿到 UID
+hi model version list <UID>                 # 等版本 status=Ready
+# 挂载到任务
+hi job create ... --mount models:Qwen2.5-7B:v1:/mnt/models
+```
+
+### 部署推理服务
+
+```python
+inf = client.inferences.create(
+    namespace='<ns>', name='<服务名>',
+    queue='<队列>', spec='<规格>',
+    image='reg.hellorobotaxi.top/...',
+    command='python serve.py --model /mnt/models',
+    mounts=[{'type': 'models', 'name': '<模型>', 'version': 'v1', 'mountPath': '/mnt/models'}],
+)
+inf = client.inferences.wait_until_ready('<ns>', inf.name)
+print(inf.endpoint)
+```
+
+### 创建开发环境
+
+```python
+ds = client.devspaces.create(
+    namespace='<ns>', name='<环境名>',
+    queue='<队列>', spec='<规格>',
+    image='reg.hellorobotaxi.top/...',
+)
+ds = client.devspaces.wait_until_running('<ns>', ds.name)
+print(ds.jupyter_url, ds.ssh_command)
+```
+
+### 诊断失败任务
+
+```python
+# 1. 查状态
+job = client.jobs.get('<ns>', '<任务名>')
+print(job.phase, job.is_terminal)
+
+# 2. 查日志（最近 200 行）
+logs = client.jobs.logs('<ns>', '<任务名>', tail=200)
+for entry in logs:
+    print(f'[{entry.pod}] {entry.line}')
+
+# 3. 结构化诊断（AI 分析）
+result = client.jobs.diagnose('<ns>', '<任务名>')
+
+# 4. 丰富详情（pods、conditions、mounts）
+detail = client.jobs.detail('<ns>', '<任务名>')
+```
+
+### 创建 Pipeline
+
+```
+1. 列出目标 ns 已有 pipeline  → 找最近 Succeeded 的作为参考
+2. 检查 spec.templateRef.id   → 有模板则用 create_from_template（推荐）
+3. 需要定制 tasks             → 从模板 API 取 tasks（队列名干净），修改后用 create
+4. 创建成功后输出平台链接
+```
+
+**踩坑**：不要从运行过的 pipeline 取 tasks（`params.queue` 是内部 K8s 队列名会 404）；通知等轻量步骤用 CPU 队列 `cpu-common-al-sh01` + 规格 `1c-2g`。
+
+## 挂载语法速查
+
+所有 `--mount` 参数格式：`类型:名称:版本:容器内路径`
+
+| 资产类型     | CLI 语法                             | 容器内路径示例    | 说明       |
+| ------------ | ------------------------------------ | ----------------- | ---------- |
+| 数据集       | `--mount datasets:名称:v1:/mnt/data` | `/mnt/data`       | 版本必填   |
+| 模型集       | `--mount models:名称:v1:/mnt/models` | `/mnt/models`     | 版本必填   |
+| 数据卷       | `--mount volumes:名称:_:/mnt/vol`    | `/mnt/vol`        | 版本填 `_` |
+| 运行时数据卷 | `--mount runtimes:名称:_:/mnt/rt`    | `/mnt/rt`         | 版本填 `_` |
+| 代码仓库     | 创建任务时选择仓库/分支/commit       | `/workspace/code` | Git 挂载   |
+
+SDK 等价调用：`client.jobs.create(..., mounts=[{'type': 'datasets', 'name': '...', 'version': 'v1', 'mountPath': '/mnt/data'}])`
+
+## 常见错误排查
+
+| 现象                                   | 根因                                           | 解决                                                              |
+| -------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------- |
+| `namespace not found` 或 `403`         | namespace 未设置或无权限                       | 优先用 `namespace/name`；创建时用 `-n <ns>` 指定                  |
+| `queue not found` / `获取队列失败 404` | 队列名拼错或用了内部 K8s 队列名                | `hi queue list` 确认可用队列名                                    |
+| `image pull failed` / 镜像拉取超时     | 镜像不在 `reg.hellorobotaxi.top` 或 tag 不存在 | `hi image list -A` + `hi image version list <UID>` 确认           |
+| 任务卡在 Pending                       | 队列无可用资源或规格不匹配                     | `hi queue specs <队列>` 确认规格，`hi job diagnose <任务>` 查诊断 |
+| 挂载的数据为空                         | 数据集/模型集版本未打或名称拼错                | `hi dataset list` + `hi dataset version list <UID>` 确认版本存在  |
+| checkpoint 写失败（潮汐队列）          | 追加写或写到非 `/workspace/output/`            | 见潮汐队列约束：一次性写到 `/workspace/output/`                   |
+| SDK `CredentialExpiredError`           | token 过期                                     | `hi login` 重新认证                                               |
+| `hi` 命令无响应                        | 网络不通或 API 地址错误                        | `hi config show` 检查环境和 API 地址                              |
+
+## 平台设计原则
+
+### 事实优先
+
+- 不要凭空补全平台行为、资源状态、失败原因或用户环境。缺少证据时说明未知，并引导用户查询平台资源、日志、诊断、事件和资产详情。
+- 解释 K8s Event 时必须看发生时间、对象、原因和消息；事件对象仍存在不等于当前有错，历史 Warning 也不等于本次失败根因。先建立时间线，再判断事件与任务状态、日志、指标是否有关联。
+- 平台已有结构化能力时优先使用：任务详情、诊断、日志、workspace、数据集、模型集、镜像、代码仓库、队列规格。不要用猜测替代平台查询结果。
+
+### 资产优先
+
+- 默认引导用户使用平台资产能力：数据放数据集，模型/权重放模型集，代码放代码仓库，镜像放镜像平台；训练任务、Pipeline、开发环境和推理服务通过挂载/选择这些资产来消费。
+- 不要把数据卷当成默认推荐。数据卷不一定更好，成本高，大规模任务下通常无法线性扩展；能用数据集、模型集和代码仓库表达的输入，应优先走对象存储加速访问的资产方案。
+- 只有用户明确需要 POSIX 语义、共享可写状态或短期交互式存储，并且确认成本与扩展性影响后，才考虑数据卷。
+
+## 创建资源前的硬约束
+
+### 镜像来源
+
+- 训练任务、开发环境、推理服务、Pipeline 中使用的镜像必须先能在镜像平台查询到：`https://reg.hellorobotaxi.top/`。
+- 容器镜像引用必须来自 `reg.hellorobotaxi.top/...`；不要直接使用 `docker.io/...`、`nvcr.io/...`、个人私有仓库或用户口述但平台查不到的镜像名。
+- 提交资源前先查镜像：CLI 用 `hi image list -A` 和 `hi image version list <镜像UID>`；SDK 用 `client.images.list(...)` 和 `client.images.list_versions(image.uid)`。
+- 查不到镜像时，先让用户在镜像平台注册/同步镜像；`client.images.create(..., image_url=...)` 只用于登记已在平台 registry 存在的镜像地址。
+
+### 潮汐队列
+
+当队列名称/描述包含“潮汐”，或用户明确要求使用潮汐队列时，按下面规则创建训练任务或 Pipeline：
+
+1. **禁止数据卷。** 不使用 `volumes:` 挂载、`hi volume ...`、`client.volumes` 或 `/mnt/vol`。依赖数据必须先上传到数据集，模型/权重必须先上传到模型集，再用 `--mount datasets:名称:版本:/mnt/data`、`--mount models:名称:版本:/mnt/models` 挂载，并让代码读取这些挂载路径。
+2. **必须 Git 挂载代码。** 先把 GitLab 仓库注册到代码管理：`hi code create ...` 或 `client.codes.create(...)`；创建任务时选择对应仓库、分支和 commit。不要依赖镜像内置代码、workspace 手动上传代码或数据卷代码目录。
+3. **输出只能写到 `/workspace/output/`。** 潮汐队列中 `/workspace/output/` 是唯一可写且唯一可带回路径；启动命令、训练代码、日志、指标、checkpoint、模型产物、临时输出和中间文件都不得写到 `/workspace/logs`、`/tmp`、数据集、模型集、数据卷或其他路径。
+4. **禁止依赖 reopen/append write。** 潮汐队列存储不支持重新打开同一文件追加写。提交前检查启动命令和训练代码，避免 `>>`、`tee -a`、`open(..., "a")`、JSONL 追加日志、反复覆盖同一 checkpoint 文件。实时日志走 stdout/stderr；需要带回的文件应在 `/workspace/output/` 下保存到新文件或新目录，checkpoint 先完整生成再一次性落到 `/workspace/output/`。
+
+提交潮汐队列任务前，必须能回答：镜像是否可在镜像平台查询到、数据/模型是否已经资产化并挂载、GitLab 仓库/分支/commit 是否已选定、所有回收产物是否只写 `/workspace/output/` 且不追加写。
 
 ## 初始化
 
@@ -21,616 +185,235 @@ ns = client.ns("ad-perception")
 jobs = ns.jobs.list()  # 不用再传 namespace
 ```
 
-默认 namespace：`hi ns use <ns>` / `hi config set-namespace`，或环境变量 `HYPER_AI_NAMESPACE`（优先级高于配置文件）
+默认 namespace：`hi ns use <ns>`，或环境变量 `HYPER_AI_NAMESPACE`（优先级高于配置文件）
 
-## 资源管理器
+便捷函数：`import hyper_ai as hi` → `hi.train(...)` / `hi.dev(...)` / `hi.serve(...)` 等价于 `client.jobs.create` / `client.devspaces.create` / `client.inferences.create`。
+
+## API 参考
+
+**资产类通用方法**（适用于 `client.datasets` / `client.models` / `client.volumes` / `client.runtimes`）：
+
+| 方法                                                  | 说明                       |
+| ----------------------------------------------------- | -------------------------- |
+| `create(...)`                                         | 创建资源                   |
+| `delete(name_or_uid)`                                 | 删除                       |
+| `get(name_or_uid)`                                    | 获取详情                   |
+| `list(namespace, name_like, page, page_size)`         | 分页列表                   |
+| `iter(namespace, name_like, page_size=100)`           | 自动分页迭代               |
+| `ls(uid_or_name, path, version, recursive)`           | 列出文件                   |
+| `upload(uid_or_name, local_path, remote_path, ...)`   | 上传（秒传+断点续传+并发） |
+| `download(uid_or_name, remote_path, local_path, ...)` | 下载                       |
+| `preview(uid_or_name, remote_path, max_bytes=4096)`   | 预览文件内容               |
+| `storage(uid_or_name, use='download')`                | 获取 StorageClient         |
+
+`datasets`/`models` 额外支持：`create_version`、`get_version`、`list_versions`（资产版本化）。
 
 ### client.jobs — 训练任务
 
-AIJob 训练任务管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (namespace, name, *, queue: str, spec: str, framework: Framework = 'pytorch', i...) | Job | 创建 AIJob。cluster 从 queue 自动推导。framework 大小写不敏感（自动转小写），owner 未指定时自动填充当前登录用户。 |
-| delete | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType | 删除 AIJob。 |
-| detail | (namespace, name) | JobDetail | 获取 AIJob 丰富详情，包含解析后的 pods、mounts、conditions。 |
-| diagnose | (namespace, name, cluster: typing.Union[str, NoneType] = N...) | dict[str, Any] | 调用诊断服务，返回结构化诊断结果。 |
-| exec | (namespace, name, command, *, pod: typing.Union[str, NoneType] = None, container: typing.Union[str, NoneType] = None, ...) | str | 在任务 Pod 中执行命令并返回输出。 |
-| exec_interactive | (namespace, name, *, pod: typing.Union[str, NoneType] = None, container: typing.Union[str, NoneType] = None) | NoneType | 交互式终端进入任务 Pod（类似 kubectl exec -it）。 |
-| follow | (namespace, name, tail: int = 50, pod: typing.Union[str, N...) | Iterator[str] | 实时跟踪 AIJob 日志（类似 kubectl logs -f）。 |
-| get | (namespace, name, cluster: typing.Union[str, NoneType] = None) | Job | 获取 AIJob 详情。 |
-| iter | (namespace=None, status: typing.Union[str, NoneType] = Non...) | Iterator[Job] | 自动分页迭代所有 AIJob。 |
-| list | (namespace=None, cluster: typing.Union[str, NoneType] = No...) | list[Job] | 列出 AIJob。 |
-| logs | (namespace, name, tail: int = 100, from_ms: typing.Union[i...) | list[LogEntry] | 获取 AIJob 日志（通过 studio-api → Loki）。 |
-| set_priority | (namespace, name, priority, cluster: typing.Union[str, Non...) | NoneType | 修改 AIJob 调度优先级。 |
-| stop | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType | 停止 AIJob。 |
-| workspace_download | (namespace, name, remote_path, local_path, progress_callba...) | str | 下载 AIJob workspace 中的文件。 |
-| workspace_ls | (namespace, name, path='', recursive=False) | list[FileEntry] | 列出 AIJob workspace 中的文件。 |
-| workspace_preview | (namespace, name, remote_path, max_bytes=4096) | bytes | 预览 AIJob workspace 中的文件内容。 |
-| workspace_storage | (namespace, name, use='download') | StorageClient | 获取绑定 AIJob workspace 的 StorageClient 实例。 |
-| workspace_upload | (namespace, name, local_path, remote_path='', progress_cal...) | str | 上传文件到 AIJob workspace。 |
+| 方法                                                                                                                                                                                 | 说明                                                         |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `create(namespace, name, queue, spec, framework='pytorch', image, command, workers=0, owner, env, mounts, max_retries=0, code_source, model_output, template_id, annotations)` → Job | 创建 AIJob。cluster 从 queue 自动推导。                      |
+| `delete(namespace, name, cluster)` → NoneType                                                                                                                                        | 删除 AIJob。                                                 |
+| `detail(namespace, name)` → JobDetail                                                                                                                                                | 获取 AIJob 丰富详情，包含解析后的 pods、mounts、conditions。 |
+| `diagnose(namespace, name, cluster, question, resource_type='aijob', timeout=600.0)` → dict[str, Any]                                                                                | 调用诊断服务，返回结构化诊断结果。                           |
+| `exec(namespace, name, command, pod, container, timeout=30.0)` → str                                                                                                                 | 在任务 Pod 中执行命令并返回输出。                            |
+| `exec_interactive(namespace, name, pod, container)` → NoneType                                                                                                                       | 交互式终端进入任务 Pod（类似 kubectl exec -it）。            |
+| `follow(namespace, name, tail=50, pod)` → Iterator[str]                                                                                                                              | 实时跟踪 AIJob 日志（类似 kubectl logs -f）。                |
+| `get(namespace, name, cluster)` → Job                                                                                                                                                | 获取 AIJob 详情。                                            |
+| `iter(namespace, status, page_size=100)` → Iterator[Job]                                                                                                                             | 自动分页迭代所有 AIJob。                                     |
+| `list(namespace, cluster, owner, status, name_like, page=1, page_size=20)` → PagedList[Job]                                                                                          | 列出 AIJob。                                                 |
+| `logs(namespace, name, tail=100, from_ms, to_ms, search, pod)` → list[LogEntry]                                                                                                      | 获取 AIJob 日志（通过 studio-api → Loki）。                  |
+| `set_priority(namespace, name, priority, cluster)` → NoneType                                                                                                                        | 修改 AIJob 调度优先级。                                      |
+| `stop(namespace, name, cluster)` → NoneType                                                                                                                                          | 停止 AIJob。                                                 |
+| `wait_until_done(namespace, name, timeout=7200.0, interval=10.0)` → Job                                                                                                              | 等待任务完成（成功、失败或停止）。                           |
+| `wait_until_running(namespace, name, timeout=600.0, interval=5.0)` → Job                                                                                                             | 等待任务进入运行状态。                                       |
+| `workspace_download(namespace, name, remote_path, local_path, progress_callback)` → str                                                                                              | 下载 AIJob workspace 中的文件。                              |
+| `workspace_ls(namespace, name, path='', recursive=False)` → list[FileEntry]                                                                                                          | 列出 AIJob workspace 中的文件。                              |
+| `workspace_preview(namespace, name, remote_path, max_bytes=4096)` → bytes                                                                                                            | 预览 AIJob workspace 中的文件内容。                          |
+| `workspace_storage(namespace, name, use='download')` → StorageClient                                                                                                                 | 获取绑定 AIJob workspace 的 StorageClient 实例。             |
+| `workspace_upload(namespace, name, local_path, remote_path='', progress_callback, skip_existing=True, enable_resume=True, concurrency=10, pattern)` → str                            | 上传文件到 AIJob workspace。支持秒传、断点续传、并发上传。   |
 
 ### client.devspaces — 开发环境
 
-DevSpace 开发环境管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (namespace, name, queue: str, spec: str, image: str, servi...) | DevSpace | 创建 DevSpace。cluster 从 queue 自动推导。 |
-| delete | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType |  |
-| exec | (namespace, name, command, container: str = '', timeout: f...) | str | 在 DevSpace Pod 中执行命令并返回输出。 |
-| exec_interactive | (namespace, name, container: str = '') | NoneType | 交互式终端进入 DevSpace（类似 kubectl exec -it）。 |
-| get | (namespace, name, cluster: typing.Union[str, NoneType] = None) | DevSpace |  |
-| list | (namespace=None, owner: typing.Union[str, NoneType] = None...) | list[DevSpace] |  |
-| start | (namespace, name, cluster: typing.Union[str, NoneType] = None) | DevSpace | 启动 DevSpace。 |
-| stop | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType |  |
+| 方法                                                                                   | 说明                                               |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `create(namespace, name, queue, spec, image, services, mounts, env, owner)` → DevSpace | 创建 DevSpace。cluster 从 queue 自动推导。         |
+| `delete(namespace, name, cluster)` → NoneType                                          |                                                    |
+| `exec(namespace, name, command, container='', timeout=30.0)` → str                     | 在 DevSpace Pod 中执行命令并返回输出。             |
+| `exec_interactive(namespace, name, container='')` → NoneType                           | 交互式终端进入 DevSpace（类似 kubectl exec -it）。 |
+| `get(namespace, name, cluster)` → DevSpace                                             |                                                    |
+| `iter(namespace, status, page_size=100)` → Iterator[DevSpace]                          | 自动分页迭代所有开发环境。                         |
+| `list(namespace, owner, status, page=1, page_size=20)` → PagedList[DevSpace]           |                                                    |
+| `start(namespace, name, cluster)` → DevSpace                                           | 启动 DevSpace。                                    |
+| `stop(namespace, name, cluster)` → NoneType                                            |                                                    |
+| `wait_until_running(namespace, name, timeout=300.0, interval=5.0)` → DevSpace          | 等待开发环境进入运行状态。                         |
 
 ### client.inferences — 推理服务
 
-Inference 推理服务管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (namespace, name, queue: str, spec: str, image: str, comma...) | Inference |  |
-| delete | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType |  |
-| get | (namespace, name, cluster: typing.Union[str, NoneType] = None) | Inference |  |
-| list | (namespace=None, page: int = 1, page_size: int = 20) | list[Inference] |  |
-| restart | (namespace, name, cluster: typing.Union[str, NoneType] = N...) | Inference | 重启推理服务。 |
-| scale | (namespace, name, replicas, cluster: typing.Union[str, Non...) | NoneType |  |
-| start | (namespace, name, cluster: typing.Union[str, NoneType] = None) | Inference |  |
-| stop | (namespace, name, cluster: typing.Union[str, NoneType] = None) | Inference |  |
+| 方法                                                                                               | 说明                       |
+| -------------------------------------------------------------------------------------------------- | -------------------------- |
+| `create(namespace, name, queue, spec, image, command, replicas=1, mounts, env, owner)` → Inference |                            |
+| `delete(namespace, name, cluster)` → NoneType                                                      |                            |
+| `get(namespace, name, cluster)` → Inference                                                        |                            |
+| `iter(namespace, page_size=100)` → Iterator[Inference]                                             | 自动分页迭代所有推理服务。 |
+| `list(namespace, page=1, page_size=20)` → PagedList[Inference]                                     |                            |
+| `restart(namespace, name, cluster, strategy)` → Inference                                          | 重启推理服务。             |
+| `scale(namespace, name, replicas, cluster)` → NoneType                                             |                            |
+| `start(namespace, name, cluster)` → Inference                                                      |                            |
+| `stop(namespace, name, cluster)` → Inference                                                       |                            |
+| `wait_until_ready(namespace, name, timeout=300.0, interval=5.0)` → Inference                       | 等待推理服务就绪。         |
 
 ### client.tensorboards — TensorBoard
 
-TensorBoard 可视化管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (namespace, name, queue: str, spec: str, log_sources: list...) | TensorBoard |  |
-| delete | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType |  |
-| get | (namespace, name, cluster: typing.Union[str, NoneType] = None) | TensorBoard |  |
-| list | (namespace=None, page: int = 1, page_size: int = 20) | list[TensorBoard] |  |
-
-### client.datasets — 数据集
-
-Dataset 数据集管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (name, *, namespace=None, description: str = '', tags: typing.Unio...) | Dataset |  |
-| create_version | (dataset_uid, version_name, description: str = '', labels:...) | AssetVersion |  |
-| delete | (name_or_uid) | NoneType |  |
-| download | (dataset_uid, remote_path, local_path, version: typing.Uni...) | str | 下载数据集中的文件。 |
-| get | (name_or_uid) | Dataset |  |
-| get_version | (dataset_uid, version_name) | AssetVersion |  |
-| list | (namespace=None, name_like: typing.Union[str, NoneType] = ...) | list[Dataset] |  |
-| list_versions | (dataset_uid, page: int = 1, page_size: int = 20) | list[AssetVersion] |  |
-| ls | (dataset_uid, path='', *, version=None, recursive=False) | list[FileEntry] | 列出数据集中的文件。 |
-| preview | (dataset_uid, remote_path, *, version=None, max_bytes=4096) | bytes | 预览数据集中的文件内容。 |
-| storage | (dataset_uid, use: Literal['download','upload']='download', version=None) | StorageClient | 获取绑定数据集的 StorageClient 实例。 |
-| upload | (dataset_uid, local_path, remote_path='', version: typing....) | str | 上传文件到数据集。 |
-
-### client.models — 模型
-
-Model 模型管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (name, *, namespace=None, description: str = '', tags: typing.Unio...) | Model |  |
-| create_version | (model_uid, version_name, description: str = '', labels: t...) | AssetVersion |  |
-| delete | (name_or_uid) | NoneType |  |
-| download | (model_uid, remote_path, local_path, version: typing.Union...) | str | 下载模型中的文件。 |
-| get | (name_or_uid) | Model |  |
-| get_version | (model_uid, version_name) | AssetVersion |  |
-| list | (namespace=None, name_like: typing.Union[str, NoneType] = ...) | list[Model] |  |
-| list_versions | (model_uid, page: int = 1, page_size: int = 20) | list[AssetVersion] |  |
-| ls | (model_uid, path='', *, version=None, recursive=False) | list[FileEntry] | 列出模型中的文件。 |
-| preview | (model_uid, remote_path, *, version=None, max_bytes=4096) | bytes | 预览模型中的文件内容。 |
-| storage | (model_uid, use: Literal['download','upload']='download', version=None) | StorageClient | 获取绑定模型的 StorageClient 实例。 |
-| upload | (model_uid, local_path, remote_path='', version: typing.Un...) | str | 上传文件到模型。 |
+| 方法                                                                     | 说明 |
+| ------------------------------------------------------------------------ | ---- |
+| `create(namespace, name, queue, spec, log_sources, owner)` → TensorBoard |      |
+| `delete(namespace, name, cluster)` → NoneType                            |      |
+| `get(namespace, name, cluster)` → TensorBoard                            |      |
+| `list(namespace, page=1, page_size=20)` → PagedList[TensorBoard]         |      |
 
 ### client.queues — 调度队列
 
-Queue 调度队列管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| get | (name) | Queue |  |
-| list | (namespace=None, page: int = 1, page_size: int = 100) | list[Queue] |  |
-| specs | (queue_name) | list[ResourceSpec] |  |
+| 方法                                                                                                         | 说明                              |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| `create(name, cluster, tenant, namespaces, description='', specs, namespace_access_mode='ReadOnly')` → Queue | 创建调度队列。                    |
+| `delete(name)` → NoneType                                                                                    | 删除队列。                        |
+| `get(name)` → Queue                                                                                          | 获取队列详情。                    |
+| `list(namespace, page=1, page_size=100)` → PagedList[Queue]                                                  | 列出队列（可按 namespace 过滤）。 |
+| `specs(queue_name)` → list[ResourceSpec]                                                                     | 获取队列可用的资源规格列表。      |
+| `update(name, specs, namespaces, namespace_access_mode='ReadOnly')` → Queue                                  | 更新队列资源规格或可见命名空间。  |
 
 ### client.pipelines — Pipeline
 
-Pipeline 工作流管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| cancel | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType |  |
-| create | (namespace, name, queue: str, spec: str, tasks: list[dict[...) | dict[str, Any] |  |
-| create_from_template | (namespace, name, queue: str, spec: str, template_id: str,...) | dict[str, Any] | 从模板创建 Pipeline。 |
-| delete | (namespace, name, cluster: typing.Union[str, NoneType] = None) | NoneType |  |
-| get | (namespace, name, cluster: typing.Union[str, NoneType] = None) | dict[str, Any] |  |
-| list | (namespace=None, page: int = 1, page_size: int = 20) | list[dict[str, Any]] |  |
+| 方法                                                                                                 | 说明                        |
+| ---------------------------------------------------------------------------------------------------- | --------------------------- |
+| `cancel(namespace, name, cluster)` → NoneType                                                        |                             |
+| `create(namespace, name, queue, spec, tasks, params, template_ref, timeout, owner)` → Pipeline       |                             |
+| `create_from_template(namespace, name, queue, spec, template_id, params, timeout, owner)` → Pipeline | 从模板创建 Pipeline。       |
+| `create_template(name, tasks, namespace, description, params, cluster, timeout)` → dict[str, Any]    | 创建 Pipeline 模板。        |
+| `delete(namespace, name, cluster)` → NoneType                                                        |                             |
+| `delete_template(template_id)` → NoneType                                                            | 删除 Pipeline 模板。        |
+| `finished(namespace, name, kwargs)` → bool                                                           | 判断 Pipeline 是否已结束。  |
+| `get(namespace, name, cluster)` → Pipeline                                                           |                             |
+| `get_template(template_id)` → dict[str, Any]                                                         |                             |
+| `iter(namespace, page_size=100)` → Iterator[Pipeline]                                                | 自动分页迭代所有 Pipeline。 |
+| `list(namespace, page=1, page_size=20)` → PagedList[Pipeline]                                        |                             |
+| `list_templates(namespace, name_like, page=1, page_size=20)` → list[dict[str, Any]]                  |                             |
+| `phase(namespace, name, kwargs)` → str                                                               | 获取 Pipeline 运行状态。    |
+| `retry(namespace, name, cluster)` → NoneType                                                         | 重试失败的 Pipeline。       |
+| `update_template(template_id, spec)` → dict[str, Any]                                                | 更新 Pipeline 模板。        |
 
 ### client.namespaces — 命名空间
 
-Namespace 命名空间管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| get | (name) | Namespace |  |
-| list | (tenant: typing.Union[str, NoneType] = None) | list[Namespace] |  |
+| 方法                             | 说明 |
+| -------------------------------- | ---- |
+| `get(name)` → Namespace          |      |
+| `list(tenant)` → list[Namespace] |      |
 
 ### client.images — 容器镜像
 
-Image 镜像管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (namespace, name, description: str = '', image_url: str = ...) | Image | 创建镜像。 |
-| delete | (name_or_uid) | NoneType |  |
-| get | (name_or_uid) | Image |  |
-| list | (namespace=None, *, name_like=None, image_type: Literal['system','custom','backup']=None, ...) | list[Image] | image_type 支持按类型过滤：system / custom / backup |
-| list_versions | (image_uid, page: int = 1, page_size: int = 20) | list[ImageVersion] |  |
-
-### client.volumes — 数据卷
-
-Volume 数据卷管理器 — CRUD + 文件操作。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (namespace, name, description: str = '', tags: typing.Unio...) | Volume | 创建数据卷。 |
-| delete | (name_or_uid) | NoneType |  |
-| download | (name, remote_path, local_path, progress_callback: typing....) | str | 下载数据卷中的文件。 |
-| get | (name_or_uid) | Volume |  |
-| list | (namespace=None, name_like: typing.Union[str, NoneType] = ...) | list[Volume] |  |
-| ls | (name, path='', recursive=False) | list[FileEntry] | 列出数据卷中的文件。 |
-| preview | (name, remote_path, max_bytes=4096) | bytes | 预览数据卷中的文件内容。 |
-| storage | (name, use='download') | StorageClient | 获取绑定数据卷的 StorageClient 实例。 |
-| upload | (name, local_path, remote_path='', progress_callback: typi...) | str | 上传文件到数据卷。 |
+| 方法                                                                              | 说明       |
+| --------------------------------------------------------------------------------- | ---------- |
+| `create(namespace, name, description='', image_url='', tags, labels)` → Image     | 创建镜像。 |
+| `delete(name_or_uid)` → NoneType                                                  |            |
+| `get(name_or_uid)` → Image                                                        |            |
+| `list(namespace, name_like, image_type, page=1, page_size=20)` → PagedList[Image] | 列出镜像。 |
+| `list_versions(image_uid, page=1, page_size=20)` → PagedList[ImageVersion]        |            |
 
 ### client.codes — 代码仓库
 
-Code 代码仓库管理器。
-
-| 方法 | 签名 | 返回 | 说明 |
-|------|------|------|------|
-| create | (namespace, name, git_url: str = '', description: str = ''...) | Code | 创建代码仓库。 |
-| delete | (name_or_uid) | NoneType |  |
-| get | (name_or_uid) | Code |  |
-| list | (namespace=None, name_like: typing.Union[str, NoneType] = ...) | list[Code] |  |
-| list_branches | (code_uid, name_like: typing.Union[str, NoneType] = None, ...) | list[GitBranch] | 列出代码仓库的分支。 |
-| list_commits | (code_uid, ref: str = 'master', page: int = 1, page_size: ...) | list[GitCommit] | 列出代码仓库的提交（需指定 refName）。 |
-| list_tags | (code_uid, name_like: typing.Union[str, NoneType] = None, ...) | list[GitTag] | 列出代码仓库的标签。 |
+| 方法                                                                                                                                                       | 说明                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `clone(name_or_uid, path, ref_name, tag, depth=1, include_submodule=False, include_lfs=False, max_retries=3, retry_delay=5, timeout=300)` → GitCloneResult | 克隆代码仓库到本地路径。               |
+| `create(namespace, name, git_url='', description='', tags, labels)` → Code                                                                                 | 创建代码仓库。                         |
+| `delete(name_or_uid)` → NoneType                                                                                                                           |                                        |
+| `get(name_or_uid)` → Code                                                                                                                                  |                                        |
+| `iter(namespace, name_like, page_size=100)` → Iterator[Code]                                                                                               | 自动分页迭代所有代码仓库。             |
+| `list(namespace, name_like, page=1, page_size=20)` → PagedList[Code]                                                                                       |                                        |
+| `list_branches(code_uid, name_like, page=1, page_size=50)` → list[GitBranch]                                                                               | 列出代码仓库的分支。                   |
+| `list_commits(code_uid, ref='master', page=1, page_size=20)` → list[GitCommit]                                                                             | 列出代码仓库的提交（需指定 refName）。 |
+| `list_tags(code_uid, name_like, page=1, page_size=50)` → list[GitTag]                                                                                      | 列出代码仓库的标签。                   |
 
 ## 数据模型
 
+**所有资源通用属性**：`name`, `uid`, `namespace`, `description`（property）。
+有状态资源额外有 `phase`（str）、`created_at`（Optional[str]）、`owner`（Optional[str]）。
+下面只列各模型的**差异字段**。
+
 ### Job — 训练任务
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| spec | JobSpec |  |
-| status | JobStatus |  |
-| job_type | str | jobType |
-| cluster_name | str | clusterName |
-| progress | float |  |
+| 属性          | 类型  | 说明         |
+| ------------- | ----- | ------------ |
+| job_type      | str   | jobType      |
+| cluster_name  | str   | clusterName  |
+| progress      | float |              |
 | total_seconds | float | totalSeconds |
-| cluster | str | (property) |
-| created_at | typing.Union[str, NoneType] | (property) |
-| is_running | bool | (property) |
-| is_terminal | bool | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| owner | typing.Union[str, NoneType] | (property) |
-| phase | str | (property) |
-| queue | str | (property) |
-| spec_name | str | (property) |
-| uid | str | (property) |
-
-### DevSpace — 开发环境
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| spec | DevSpaceSpec |  |
-| status | DevSpaceStatus |  |
-| created_at | typing.Union[str, NoneType] | (property) |
-| jupyter_url | typing.Union[str, NoneType] | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| owner | typing.Union[str, NoneType] | (property) |
-| phase | str | (property) |
-| ssh_command | typing.Union[str, NoneType] | (property) |
-| uid | str | (property) |
-
-### Inference — 推理服务
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| spec | InferenceSpec |  |
-| status | InferenceStatus |  |
-| created_at | typing.Union[str, NoneType] | (property) |
-| endpoint | typing.Union[str, NoneType] | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| owner | typing.Union[str, NoneType] | (property) |
-| phase | str | (property) |
-| uid | str | (property) |
-
-### Queue — 调度队列
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| cluster | str |  |
-| specs | list[ResourceSpec] |  |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| uid | str | (property) |
-
-### Dataset — 数据集
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| description | str | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| uid | str | (property) |
-
-### Model — 模型
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| description | str | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| uid | str | (property) |
+| cluster       | str   | (property)   |
+| is_running    | bool  | (property)   |
+| is_terminal   | bool  | (property)   |
+| queue         | str   | (property)   |
+| spec_name     | str   | (property)   |
 
 ### AssetVersion — 资产版本
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| spec | dict[str, Any] |  |
-| format | str | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| s3_path | typing.Union[str, NoneType] | (property) |
-| status_label | str | (property) |
-| uid | str | (property) |
+| 属性         | 类型          | 说明                                |
+| ------------ | ------------- | ----------------------------------- |
+| format       | str           | (property)                          |
+| s3_path      | Optional[str] | (property)                          |
+| source_label | str           | (property)                          |
+| source_name  | str           | HF 导入时返回 repo ID，否则返回空。 |
+| status_label | str           | (property)                          |
 
-### Image — 容器镜像
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| description | str | (property) |
-| image_type | str | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| uid | str | (property) |
-
-### Volume — 数据卷
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| description | str | (property) |
-| mounts | list[dict[str, str]] | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| uid | str | (property) |
-
-### Code — 代码仓库
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| spec | dict[str, Any] |  |
-| description | str | (property) |
-| git_url | str | (property) |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| uid | str | (property) |
-
-### StsToken — STS 临时凭证
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| endpoint | str |  |
-| access_key_id | str | accessKeyId |
-| secret_access_key | str | secretAccessKey |
-| session_token | str | sessionToken |
-| bucket | str |  |
-| path | str |  |
-| s3_path | str | s3Path |
-| region | str |  |
-| force_path_style | bool | forcePathStyle |
-| expiration_timestamp | str | expirationTimestamp |
-
-### FileEntry — 文件条目
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| name | str |  |
-| path | str |  |
-| size | int |  |
-| is_dir | bool |  |
-| last_modified | typing.Union[str, NoneType] |  |
-| size_human | str | 人类可读的文件大小。 |
-
-### LogEntry — 日志条目
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| timestamp | str |  |
-| line | str |  |
-| pod | str |  |
-| container | str |  |
+**DevSpace**：`jupyter_url`, `ssh_command` | **Inference**：`endpoint` | **Queue**：`cluster`, `specs` | **Image**：`image_type` | **Volume**：`mounts` | **Code**：`git_url`
 
 ### JobDetail — 任务详情
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| job | Job |  |
-| active_pods | list[dict[str, Any]] |  |
-| pod_stats | dict[str, Any] |  |
-| train_start_time | str |  |
-| description | str |  |
-| controller_phase | str |  |
-| controller_message | str |  |
+| 属性               | 类型                 | 说明 |
+| ------------------ | -------------------- | ---- |
+| job                | Job                  |      |
+| active_pods        | list[dict[str, Any]] |      |
+| pod_stats          | dict[str, Any]       |      |
+| train_start_time   | str                  |      |
+| description        | str                  |      |
+| controller_phase   | str                  |      |
+| controller_message | str                  |      |
 
-### TensorBoard — TensorBoard 实例
+### LogEntry — 日志条目
 
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| kind | str |  |
-| metadata | Metadata |  |
-| spec | TensorBoardSpec |  |
-| status | TensorBoardStatus |  |
-| name | str | (property) |
-| namespace | typing.Union[str, NoneType] | (property) |
-| owner | str | (property) |
-| phase | str | (property) |
-| uid | str | (property) |
+| 属性      | 类型 | 说明 |
+| --------- | ---- | ---- |
+| timestamp | str  |      |
+| line      | str  |      |
+| pod       | str  |      |
+| container | str  |      |
 
-## 便捷函数
+## CLI
 
-```python
-import hyper_ai as hi
+CLI 命令与 SDK 一一对应：`hi <资源> <操作>` ↔ `client.<资源>.<操作>(...)`。
+例如 `hi job create` ↔ `client.jobs.create()`，`hi dataset upload` ↔ `client.datasets.upload()`。
 
-# 提交训练任务 — 面向算法工程师的便捷接口。
-result = hi.train(namespace, name, queue: str, spec: str, framework: str = ...)
-
-# 创建开发环境 — 面向算法工程师的便捷接口。
-result = hi.dev(namespace, name, queue: str, spec: str, image: str, servi...)
-
-# 部署推理服务 — 面向算法工程师的便捷接口。
-result = hi.serve(namespace, name, queue: str, spec: str, image: str, comma...)
-
-```
-
-## CLI 命令
-
-```bash
-    hi job list|get|logs|diagnose|create|stop|delete|priority|ls|download|upload|preview|exec|workspace ...  # 训练任务 — 创建、查看、日志、停止、删除
-    hi devspace list|get|create|stop|start|delete|exec  # 开发环境 — GPU 工作站的创建、启停和管理
-    hi inference list|get|create|scale|start|stop|restart|delete  # 推理服务 — 部署、伸缩和管理
-    hi dataset list|get|create|delete|ls|download|upload|preview|version ...  # 数据集 — 创建、版本化、管理训练数据（含文件操作）
-    hi model list|get|create|delete|ls|download|upload|preview|version ...  # 模型 — 创建、版本化、管理模型产物（含文件操作）
-    hi queue list|get|specs  # 调度队列 — 查看队列和可用资源规格
-    hi pipeline list|get|cancel|delete  # Pipeline — 多步骤训练工作流管理
-    hi tb list|get|create|delete  # TensorBoard — 训练指标可视化管理
-    hi tensorboard list|get|create|delete  # TensorBoard — 训练指标可视化管理
-    hi namespace list|get|use|current|clear-default  # 命名空间 — 查看团队和资源组织
-    hi ns list|get|use|current|clear-default  # 命名空间 — 查看团队和资源组织
-    hi config show|set-env|set-token|set-namespace|clear-namespace  # 配置 — 查看和管理 SDK 配置
-    hi skill generate  # Skill — SDK 能力自动导出为 Agent Skill
-    hi image list|get|create|delete|versions  # 镜像 — 容器镜像的管理和版本查看（list 支持 --type system/custom/backup）
-    hi volume list|get|create|delete|ls|download|upload|preview  # 数据卷 — 管理和文件操作（ls/download/upload/preview）
-    hi code list|get|create|delete|branches|tags|commits  # 代码仓库 — Git 代码的管理和浏览
-```
+完整命令列表：`hi --help`；子命令帮助：`hi <资源> <操作> --help`。
 
 ## 平台链接
 
-### 环境域名
-
-| 环境 | 域名 |
-|------|------|
-| prod | `https://hyper-ai.hellorobotaxi.top` |
+| 环境 | 域名                                      |
+| ---- | ----------------------------------------- |
+| prod | `https://hyper-ai.hellorobotaxi.top`      |
 | test | `https://hyper-ai-test.hellorobotaxi.top` |
 
-### URL 映射表
+创建/查询资源后**必须输出对应链接**，用 `client.base_url` 取域名。
 
-创建/查询资源后**必须输出对应链接**。
+| 资源        | URL 模式                                           |
+| ----------- | -------------------------------------------------- |
+| Job         | `{base}/jobs/{namespace}/{cluster}/{name}`         |
+| DevSpace    | `{base}/devspaces/{namespace}/{cluster}/{name}`    |
+| Inference   | `{base}/inferences/{namespace}/{cluster}/{name}`   |
+| Pipeline    | `{base}/pipeline/{namespace}/{name}`               |
+| Dataset     | `{base}/datasets/{uid}`                            |
+| Model       | `{base}/models/{uid}`                              |
+| Volume      | `{base}/volumes/{name}`                            |
+| TensorBoard | `{base}/tensorboards/{namespace}/{cluster}/{name}` |
+| Image       | `{base}/images/{uid}`                              |
+| Code        | `{base}/codes/{uid}`                               |
 
-| 资源 | URL 模式 | 关键参数来源 |
-|------|---------|-------------|
-| Job | `/jobs/{namespace}/{cluster}/{name}` | `job.namespace`, `job.cluster`, `job.name` |
-| DevSpace | `/devspaces/{namespace}/{cluster}/{name}` | metadata |
-| Inference | `/inferences/{namespace}/{cluster}/{name}` | metadata |
-| Pipeline | `/pipeline/{namespace}/{name}` | `metadata.namespace`, `metadata.name` |
-| Dataset | `/datasets/{uid}` | `metadata.uid` |
-| Model | `/models/{uid}` | `metadata.uid` |
-| Volume | `/volumes/{name}` | `metadata.name` |
-| TensorBoard | `/tensorboards/{namespace}/{cluster}/{name}` | metadata |
-| Image | `/images/{uid}` | `metadata.uid` |
-| Code | `/codes/{uid}` | `metadata.uid` |
-
-### 链接构造
-
-```python
-from hyper_ai import HyperAI
-client = HyperAI()
-base = client.base_url  # 自动取当前环境域名
-
-# Job
-job = client.jobs.get("ns", "name")
-url = f"{base}/jobs/{job.namespace}/{job.cluster}/{job.name}"
-
-# Pipeline（创建后立即输出链接）
-result = client.pipelines.create_from_template(...)
-meta = result['metadata']
-url = f"{base}/pipeline/{meta['namespace']}/{meta['name']}"
-print(f"查看: {url}")
-
-# DevSpace / Inference / TensorBoard
-ds = client.devspaces.get("ns", "name")
-cluster = ds.spec.get('cluster', '') if isinstance(ds.spec, dict) else ''
-url = f"{base}/devspaces/{ds.namespace}/{cluster}/{ds.name}"
-
-# Dataset / Model / Image / Code（按 uid）
-dataset = client.datasets.get("uid_or_name")
-url = f"{base}/datasets/{dataset.uid}"
-```
-
-### 链接识别
-
-当用户粘贴平台链接时，解析资源类型和坐标：
-
-```python
-import re
-
-URL_PATTERNS = {
-    "job":         re.compile(r"/(?:ai)?jobs/(?P<ns>[^/]+)/(?P<cluster>[^/]+)/(?P<name>[^/?#]+)"),
-    "devspace":    re.compile(r"/devspaces/(?P<ns>[^/]+)/(?P<cluster>[^/]+)/(?P<name>[^/?#]+)"),
-    "inference":   re.compile(r"/inferences/(?P<ns>[^/]+)/(?P<cluster>[^/]+)/(?P<name>[^/?#]+)"),
-    "pipeline":    re.compile(r"/pipeline/(?P<ns>[^/]+)/(?P<name>[^/?#]+)"),
-    "tensorboard": re.compile(r"/tensorboards/(?P<ns>[^/]+)/(?P<cluster>[^/]+)/(?P<name>[^/?#]+)"),
-    "dataset":     re.compile(r"/datasets/(?P<uid>[^/?#]+)"),
-    "model":       re.compile(r"/models/(?P<uid>[^/?#]+)"),
-    "volume":      re.compile(r"/volumes/(?P<name>[^/?#]+)"),
-    "image":       re.compile(r"/images/(?P<uid>[^/?#]+)"),
-    "code":        re.compile(r"/codes/(?P<uid>[^/?#]+)"),
-}
-
-def parse_url(url: str) -> dict | None:
-    """从平台 URL 提取资源类型和坐标。"""
-    for kind, pat in URL_PATTERNS.items():
-        m = pat.search(url)
-        if m:
-            return {"kind": kind, **m.groupdict()}
-    return None
-
-# 示例
-info = parse_url("https://hyper-ai.hellorobotaxi.top/jobs/ad-e2e/hpc-prod-al-sh01/train-v3")
-# → {'kind': 'job', 'ns': 'ad-e2e', 'cluster': 'hpc-prod-al-sh01', 'name': 'train-v3'}
-info = parse_url("https://hyper-ai.hellorobotaxi.top/pipeline/ad-e2e/test-xxx-8pq9n")
-# → {'kind': 'pipeline', 'ns': 'ad-e2e', 'name': 'test-xxx-8pq9n'}
-```
-
-## Pipeline 创建引导
-
-创建 Pipeline 时**必须先参考同命名空间已有的成功 pipeline**，避免参数缺失或过期。
-
-### 标准流程
-
-```
-1. 列出目标命名空间的 pipeline，找最近一次 Succeeded 的
-2. 获取该 pipeline 的完整 spec（tasks、template、timeout）
-3. 如有模板 templateRef → 用 create_from_template（推荐，队列自动解析）
-4. 如需定制 → 从模板 API 获取干净 tasks，修改后用 create
-5. 创建成功后立即输出平台链接
-```
-
-### 参考已有 Pipeline 并创建
-
-```python
-from hyper_ai import HyperAI
-client = HyperAI()
-
-# 步骤 1: 列出最近的 pipeline
-pipelines = client.pipelines.list(namespace="ad-e2e", page_size=10)
-succeeded = [p for p in pipelines if p['status'].get('phase') == 'Succeeded']
-ref = succeeded[0]  # 最近成功的
-
-# 步骤 2: 检查是否基于模板
-template_ref = ref['spec'].get('templateRef', {})
-template_id = template_ref.get('id')
-
-# 步骤 3a: 从模板创建（推荐 — 队列自动解析，无过期风险）
-if template_id:
-    result = client.pipelines.create_from_template(
-        namespace='ad-e2e',
-        name='my-pipeline',
-        queue='ad-e2e-common-al-sh01',  # 从 ref 的 userConfig.queue 取
-        spec='h20-96-8gpu-150c-1600g',  # 从 ref 的 userConfig.specName 取
-        template_id=template_id,
-        timeout=ref['spec'].get('timeout', '1h'),
-    )
-
-# 步骤 3b: 需要定制 tasks（比如追加通知节点）
-# 注意：必须从模板 API 取 tasks（队列名干净），不要从运行过的 pipeline 取
-tpl = client.pipelines._get(f'/api/asset/pipeline-templates/{template_id}')
-tasks = tpl['spec']['tasks']
-tasks.append({  # 追加自定义步骤
-    'name': 'notify',
-    'template': 'hpc-container',
-    'version': 'v1',
-    'params': {'command': 'curl ...', 'cpu': '1', 'memory': '2Gi',
-               'image': '...', 'queue': 'cpu-common-al-sh01', 'specName': '1c-2g'},
-    'runAfter': ['last-step-name'],
-    'userConfig': {'queue': 'cpu-common-al-sh01', 'specName': '1c-2g'},
-})
-
-# 步骤 4: 创建成功后输出链接
-meta = result['metadata']
-base = client.transport.base_url
-print(f"Pipeline 已创建: {base}/pipeline/{meta['namespace']}/{meta['name']}")
-```
-
-### 关键注意事项
-
-| 问题 | 原因 | 解决 |
-|------|------|------|
-| 500 `获取队列失败 404` | tasks 中 `params.queue` 是已过期的内部 K8s 队列名 | 从模板 API 获取 tasks（队列名为用户可见名） |
-| 需要追加步骤 | `create_from_template` 不支持追加 task | 从模板 API 取 tasks → 手动追加 → 用 `create` |
-| 通知步骤不需要 GPU | 用 CPU 队列 `cpu-common-al-sh01` + 规格 `1c-2g` | 在 params 和 userConfig 中都设置 |
-
-## Agent 常用模式
-
-```python
-from hyper_ai import HyperAI
-client = HyperAI()
-base = client.base_url
-
-# 列出运行中的任务并输出链接
-ns = client.ns("ad-perception")
-for job in ns.jobs.list(status="Training"):
-    print(f"{job.name} → {base}/jobs/{job.namespace}/{job.cluster}/{job.name}")
-
-# 获取详情并决策
-detail = ns.jobs.detail("train-v3")
-if detail.job.is_terminal:
-    print(f"已结束: {detail.job.phase}")
-
-# 实时日志监控
-for line in ns.jobs.follow("train-v3"):
-    if "ERROR" in line:
-        ns.jobs.stop("train-v3")
-        break
-
-# 从 URL 识别资源并操作
-# 用户粘贴 https://hyper-ai.hellorobotaxi.top/jobs/ad-e2e/hpc-prod-al-sh01/train-v3
-# → 解析为 kind=job, ns=ad-e2e, cluster=hpc-prod-al-sh01, name=train-v3
-# → 调用 client.jobs.get('ad-e2e', 'train-v3') 获取详情
-
-# Pipeline 创建后输出链接
-result = client.pipelines.create_from_template(...)
-meta = result['metadata']
-print(f"查看: {base}/pipeline/{meta['namespace']}/{meta['name']}")
-```
+用户粘贴平台链接时，从 URL path 解析资源类型（`/jobs/`→Job, `/datasets/`→Dataset 等）和坐标参数。

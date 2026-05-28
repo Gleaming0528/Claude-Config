@@ -219,6 +219,7 @@ cat /proc/net/tcp | wc -l   # TCP 连接数
 - Signal: dmesg 有 `Xid` 错误（尤其 Xid 48/63/79）, nvidia-smi 有 retired pages
 - Consequence: GPU 计算结果可能错误（silent data corruption）或 GPU hang
 - Fix: 检查 retired pages 数量, 严重时更换 GPU
+- 完整 Xid/SXid 错误码表与 HPC 平台诊断流程见 skill: `hpc-training-diagnosis`
 
 **D3: Storage I/O Stall**
 - Signal: 训练在 I/O 密集操作（数据加载、checkpoint save）时卡住。dmesg 可能有 NFS/FUSE 超时。dd 写入吞吐异常低

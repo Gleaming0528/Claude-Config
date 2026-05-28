@@ -53,11 +53,36 @@ golangci-lint run
 
 ## Commit Message 格式
 
-```
-<type>: <中文描述>
+基于 [Conventional Commits](https://www.conventionalcommits.org/) + [Chris Beams 七条规则](https://chris.beams.io/posts/git-commit/) 的融合标准。
 
-<可选正文>
+### 结构
+
 ```
+<type>[(<scope>)]: <主题行>
+
+<正文（可选）>
+```
+
+### 主题行规则
+
+| 规则 | 要求 | 说明 |
+|------|------|------|
+| 前缀 | `type:` 或 `type(scope):` | Conventional Commits 格式 |
+| 长度 | **整行（含 type 前缀）≤ 72 字符** | 超长的 subject 在 `git log --oneline`、GitHub/GitLab 等处会被截断 |
+| 语气 | **动词开头**，不加"了" | ✅ `新增`、`修复`、`移除`、`重构` ✗ `新增了`、`修复了`、`关于xx的改动` |
+| 标点 | **末尾不加句号** | 节省空间，保持一致 |
+| 内容 | 说清"做了什么"，一个 commit 一件事 | 写完后检查：三个月后看 `git log --oneline` 能否理解这条改了什么？ |
+
+### 正文规则
+
+| 规则 | 要求 |
+|------|------|
+| 与主题行之间 | **空一行** |
+| 每行宽度 | **≤ 72 字符** |
+| 内容重点 | 解释 **why**（为什么改）和 **what**（改了什么），不解释 how（怎么改的——代码本身说明了 how） |
+| 何时需要正文 | 主题行无法完整传达改动意图时；一眼看不出"为什么要这么做"时 |
+
+### Type 分类
 
 | type | 场景 |
 |------|------|
@@ -69,85 +94,43 @@ golangci-lint run
 | `docs` | 文档 |
 | `test` | 测试 |
 
-**示例：**
+### 示例
+
+简单改动——主题行足够说明一切，无需正文：
 
 ```
-feat(ui): TensorBoard 一键创建优化
-
-- 去掉确认弹窗，零确认直接创建
-- 空状态增加日志路径引导
+fix: 修复训练日志时区偏移 8 小时
 ```
 
-## 完整操作示例
+需要正文——为什么这么做不显而易见：
 
-### 前端子项目提交
+```
+feat(ui): 去掉 TensorBoard 创建确认弹窗
 
-```bash
-cd hpc-ui
-git add -A
-git commit -m "feat: 新增训练可视化卡片"
-# hook 自动执行 lint + build，通过后 commit 成功
-git pull --rebase origin main
-git push
+用户反馈创建 TensorBoard 流程步骤太多。
+确认弹窗没有不可逆操作，零确认直接创建即可。
+同时在空状态增加日志路径引导，降低新用户困惑。
 ```
 
-### Go 子项目提交
+破坏性变更——正文说明影响范围：
 
-```bash
-cd hpc-studio-api
-go build ./...
-git add -A
-git commit -m "fix: TensorBoard patch 接口参数校验"
-git pull --rebase origin main
-git push
+```
+refactor(api)!: 统一分页参数命名
+
+将 pageNum/pageSize 重命名为 page/per_page，
+与平台其他 API 保持一致。
+
+BREAKING CHANGE: 前端需同步更新所有分页请求参数。
 ```
 
-### 回 workspace 更新 submodule 指针
+## 提交检查清单
 
-```bash
-cd <repo-root>
-git add hpc-ui hpc-studio-api
-git commit -m "chore: 更新 hpc-ui、hpc-studio-api submodule 指针"
-git push
-```
-
-## 常见问题
-
-| 问题 | 解决 |
-|------|------|
-| pre-commit hook lint 失败 | 修复 eslint 报错，重新 commit |
-| pre-commit hook build 失败 | 修复 TypeScript 类型错误，重新 commit |
-| rebase 冲突 | 解决冲突 → `git add` → `git rebase --continue` |
-| 忘了先 pull 导致 push 被拒 | `git pull --rebase origin main && git push` |
-
-## 反合理化
-
-| 借口 | 现实 |
-|------|------|
-| "改动很小，不用跑 build" | 一行 import 改错就能让整个项目编译失败。门禁不论改动大小。 |
-| "先 `--no-verify` 提上去，之后再修" | 跳过 hook 的 commit 会进入 CI，破坏他人的 main 分支。从来没有"之后"。 |
-| "这个 lint 警告不重要" | 警告累积 = 噪声淹没真正的错误。现在修 1 个 vs 以后修 50 个。 |
-| "commit message 随便写就行" | 三个月后 `git log` 全是 "fix" "update"，谁也看不懂历史。message 是给未来的自己看的。 |
-| "我先 push，rebase 太麻烦了" | merge commit 污染历史，冲突只会越拖越大。rebase 是当下最便宜的操作。 |
-| "这个文件不是我改的，一起提了吧" | 不相关的文件混入 commit，review 时干扰、revert 时灾难。一个 commit 只做一件事。 |
-
-## Red Flags
-
-- `git commit --no-verify` 出现在命令历史中
-- 单个 commit 混入多个不相关子项目的改动
-- commit message 是 "fix"、"update"、"wip" 等无意义描述
-- push 前没有 `git pull --rebase`
-- Go 项目提交前没跑 `go build ./...`
-- 修改了文件但 commit message 没反映实际改动内容
-- submodule 指针更新和子项目代码改动混在同一个 commit
-
-## 提交验证清单
-
-每次提交前确认：
+每次提交前逐项确认：
 
 - [ ] 质量门禁通过（前端：lint + build；Go：`go build ./...`）
 - [ ] commit 只包含一个逻辑改动的相关文件
-- [ ] commit message 符合 `<type>: <描述>` 格式，描述准确反映改动
-- [ ] `git pull --rebase origin main` 成功，无冲突
-- [ ] push 后确认远程分支状态正确
+- [ ] 主题行：`<type>: <动词开头描述>`，整行 ≤ 72 字符，末尾无句号
+- [ ] 正文（如有）：与主题行空一行，每行 ≤ 72 字符，讲 why 不讲 how
+- [ ] `git pull --rebase origin main` 后 push
 - [ ] submodule 指针更新（如需要）单独提交
+- [ ] **禁止** `--no-verify`——跳过 hook 的 commit 进入 CI 会破坏他人的 main

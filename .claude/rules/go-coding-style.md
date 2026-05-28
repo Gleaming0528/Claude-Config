@@ -6,53 +6,37 @@ alwaysApply: false
 
 # Go Coding Style
 
-## Formatting
+## 必须
 
-- **gofmt** and **goimports** are mandatory — no style debates
-- Run `gofmt -w .` before every commit
+- `gofmt` + `goimports`，无例外
+- Context 做第一个参数：`func Foo(ctx context.Context, ...)`
+- 错误用 `%w` 包装：`fmt.Errorf("create inference %s/%s: %w", ns, name, err)`
+- 错误消息：小写、无标点
+- 不忽略错误（`_`），除非有明确理由
 
-## Design Principles
+## 设计
 
 - Accept interfaces, return structs
-- Keep interfaces small (1-3 methods)
+- 接口小（1-3 方法）
 - Make the zero value useful
-- Context as first parameter: `func Foo(ctx context.Context, ...)`
-- Return early, keep happy path unindented
+- Return early，happy path 不缩进
 
-## Error Handling
+## 命名
 
-Always wrap errors with context using `%w`:
+- 包名：短、小写、无下划线（`inference`，不是 `inference_service`）
+- 导出名：`GetUser`，不是 `GetUserFromDB`
+- 缩写：`userID`、`httpClient`、`apiURL`
 
-```go
-if err != nil {
-    return fmt.Errorf("create inference %s/%s: %w", ns, name, err)
-}
-```
+## Gin Handler
 
-- Error messages: lowercase, no punctuation
-- Use `errors.Is` / `errors.As` for checking
-- Never ignore errors with `_` unless explicitly justified
+- 校验 path/query 参数后再用
+- 统一用 `common.BadRequest` / `common.InternalError`
+- 导出 handler 加 Swagger 注解
+- goroutine 中用 `c.Request.Context()`，不传 `*gin.Context`
 
-## Naming
+## 文件组织
 
-- Package names: short, lowercase, no underscores (`inference`, not `inference_service`)
-- Exported names: `GetUser`, not `GetUserFromDB`
-- Acronyms: `userID`, `httpClient`, `apiURL`
+- 每个领域：`handler.go` + `service.go`，类型在 `model/`
+- 200-400 行典型，800 行上限
 
-## File Organization
-
-- One handler file + one service file per domain (`handler.go`, `service.go`)
-- Types in `model/` package
-- Shared utilities in `pkg/`
-- 200-400 lines typical, 800 max per file
-
-## Gin Handler Convention
-
-- Always validate path/query params before use
-- Use `common.BadRequest` / `common.InternalError` consistently
-- Add Swagger annotations on all exported handlers
-- Don't pass `*gin.Context` to goroutines — use `c.Request.Context()`
-
-## Reference
-
-See skill: `golang-patterns` for comprehensive idioms and patterns.
+详细模式与代码示例见 skill: `golang-patterns`。

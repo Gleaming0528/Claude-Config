@@ -1,5 +1,5 @@
 ---
-description: Git workflow — commit format, PR process, feature implementation flow
+description: Git workflow — commit format, PR process
 alwaysApply: true
 ---
 
@@ -9,42 +9,17 @@ alwaysApply: true
 
 ```
 <type>: <description>
-
-<optional body>
 ```
 
-Types: feat, fix, refactor, docs, test, chore, perf, ci
+Types: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `perf`, `ci`
 
-Note: Attribution disabled globally via ~/.claude/settings.json.
+署名通过 prepare-commit-msg hook 自动剥离，禁止在 commit message 中写入 Co-Authored-By 行（hook 位于 .git/hooks/ 和 .git/modules/*/hooks/）。
 
-## Pull Request Workflow
+## PR 流程
 
-When creating PRs:
-1. Analyze full commit history (not just latest commit)
-2. Use `git diff [base-branch]...HEAD` to see all changes
-3. Draft comprehensive PR summary
-4. Include test plan with TODOs
-5. Push with `-u` flag if new branch
+1. `git diff [base-branch]...HEAD` 查看全量变更
+2. 分析完整 commit 历史（不只是最新 commit）
+3. 写 PR summary + test plan
+4. 新分支用 `-u` flag push
 
-## Feature Implementation Workflow
-
-1. **Plan First**
-   - Use **planner** agent to create implementation plan
-   - Identify dependencies and risks
-   - Break down into phases
-
-2. **TDD Approach**
-   - 参考 skill: `test-driven-development`
-   - Write tests first (RED)
-   - Implement to pass tests (GREEN)
-   - Refactor (IMPROVE)
-   - Verify 80%+ coverage
-
-3. **Code Review**
-   - Use **code-reviewer** agent immediately after writing code
-   - Address CRITICAL and HIGH issues
-   - Fix MEDIUM issues when possible
-
-4. **Commit & Push**
-   - Detailed commit messages
-   - Follow conventional commits format
+提交门禁、完整操作流程见 skill: `hpc-commit`。

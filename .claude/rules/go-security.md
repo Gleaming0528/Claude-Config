@@ -6,53 +6,23 @@ alwaysApply: false
 
 # Go Security
 
-## Secret Management
+## 禁止
 
-```go
-apiKey := os.Getenv("API_KEY")
-if apiKey == "" {
-    log.Fatal("API_KEY not configured")
-}
-```
+- 硬编码密钥、token、密码（用环境变量或 K8s Secret）
+- 用户输入直接拼入 `os/exec` 命令或 SQL
+- 用户输入直接做 K8s label 值（用 `utils.SanitizeLabelValue()`）
+- 生产环境 `InsecureSkipVerify: true`（内部服务需注释说明理由）
 
-- NEVER hardcode secrets, tokens, or passwords
-- Use environment variables or K8s secrets
-- Rotate credentials regularly
+## 必须
 
-## Input Validation
+- 所有外部调用设 context 超时：`context.WithTimeout(ctx, 5*time.Second)`
+- Context 逐层传播：handler → service → K8s client
+- `go test -race ./...` 常规运行
+- `sync.Mutex` 配合 `defer mu.Unlock()`
+- goroutine 中不共享 `*gin.Context`
 
-- Sanitize user input before using as K8s labels: `utils.SanitizeLabelValue()`
-- Validate path parameters in Gin handlers before use
-- Never use user input in `os/exec` commands without validation
-- Never concatenate user input into SQL queries
-
-## Context & Timeouts
-
-Always use `context.Context` for timeout control:
-
-```go
-ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-defer cancel()
-```
-
-- Propagate context through all layers (handler → service → K8s client)
-- Set timeouts on all external calls (HTTP, K8s API, database)
-
-## Security Scanning
+## 扫描
 
 ```bash
-go vet ./...
-gosec ./...
-govulncheck ./...
+go vet ./... && gosec ./... && govulncheck ./...
 ```
-
-## TLS
-
-- Never use `InsecureSkipVerify: true` in production
-- If needed for internal services, add explicit comment with justification
-
-## Race Conditions
-
-- Run `go test -race ./...` regularly
-- Use `sync.Mutex` with `defer mu.Unlock()` pattern
-- Don't share `*gin.Context` across goroutines

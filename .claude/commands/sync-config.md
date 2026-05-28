@@ -10,17 +10,19 @@ description: 将 .claude 目录和 CLAUDE.md 推送到 GitHub 仓库 Gleaming052
 
 1. **创建临时目录并克隆仓库**：
    ```bash
-   rm -rf /Users/gleaming/gitlab/_sync_tmp
-   mkdir -p /Users/gleaming/gitlab/_sync_tmp
-   cd /Users/gleaming/gitlab/_sync_tmp
+   WORKSPACE_ROOT="$(git rev-parse --show-toplevel)"
+   SYNC_TMP="${TMPDIR:-/tmp}/_claude_sync_tmp"
+   rm -rf "$SYNC_TMP"
+   mkdir -p "$SYNC_TMP"
+   cd "$SYNC_TMP"
    git clone git@github.com:Gleaming0528/Claude-Config.git .
    ```
 
-2. **用最新文件覆盖**（排除不需要同步的 skill）：
+2. **用最新文件覆盖**（排除敏感内容）：
    ```bash
-   rm -rf .claude
-   cp -r /Users/gleaming/gitlab/workspace/.claude .
-   cp /Users/gleaming/gitlab/workspace/CLAUDE.md .
+   rm -rf .claude CLAUDE.md
+   cp -r "$WORKSPACE_ROOT/.claude" .
+   cp "$WORKSPACE_ROOT/CLAUDE.md" .
    rm -rf .claude/skills/k8s-proxy-tunnel
    ```
 
@@ -53,7 +55,7 @@ description: 将 .claude 目录和 CLAUDE.md 推送到 GitHub 仓库 Gleaming052
 
 6. **清理临时目录**：
    ```bash
-   rm -rf /Users/gleaming/gitlab/_sync_tmp
+   rm -rf "$SYNC_TMP"
    ```
 
 7. **输出结果**：报告变更文件列表 + 推送状态
@@ -64,9 +66,19 @@ description: 将 .claude 目录和 CLAUDE.md 推送到 GitHub 仓库 Gleaming052
   - 网络访问：git clone / push
   - 文件系统：临时目录读写
 
+## 敏感内容排除清单
+
+以下目录/文件包含内网基础设施信息，**禁止**同步到公开仓库：
+
+| 排除路径 | 原因 |
+|----------|------|
+| `.claude/skills/k8s-proxy-tunnel/` | 含 K8s API Server 内网 IP、SSH 跳板机地址 |
+
+如有新增含敏感信息的 skill，在步骤 2 追加 `rm -rf` 行。
+
 ## 注意事项
 
 - 仓库地址：`git@github.com:Gleaming0528/Claude-Config.git`
 - 认证方式：SSH key（已配置在 `~/.ssh/`）
-- 临时目录：`/Users/gleaming/gitlab/_sync_tmp`，操作完毕后必须清理
+- 临时目录：`$SYNC_TMP`（默认 `$TMPDIR/_claude_sync_tmp`），操作完毕后必须清理
 - 如果临时目录已存在，先删除再克隆

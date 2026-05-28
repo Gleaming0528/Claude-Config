@@ -63,15 +63,13 @@ def _load_token_from_toml(path: str) -> Optional[str]:
     except (FileNotFoundError, OSError):
         return None
 
-    try:
-        import tomlkit
-        data = tomlkit.loads(raw)
-    except ImportError:
-        try:
-            import tomllib  # Python 3.11+
-            data = tomllib.loads(raw)
-        except ImportError:
-            return None
+    data = None
+    for loader in (_toml_load_stdlib, _toml_load_tomlkit, _toml_load_regex):
+        data = loader(raw)
+        if data is not None:
+            break
+    if data is None:
+        return None
 
     env_name = data.get("current", {}).get("env", "prod")
     auth = data.get("env", {}).get(env_name, {}).get("auth", "")
@@ -80,12 +78,53 @@ def _load_token_from_toml(path: str) -> Optional[str]:
     return auth if auth.startswith("Bearer ") else f"Bearer {auth}"
 
 
+def _toml_load_stdlib(raw: str) -> Optional[dict]:
+    try:
+        import tomllib  # Python 3.11+
+        return tomllib.loads(raw)
+    except Exception:
+        return None
+
+
+def _toml_load_tomlkit(raw: str) -> Optional[dict]:
+    try:
+        import tomlkit
+        return tomlkit.loads(raw)
+    except Exception:
+        return None
+
+
+def _toml_load_regex(raw: str) -> Optional[dict]:
+    """零依赖 fallback：用正则从简单 TOML 中提取 current.env 和 env.{name}.auth"""
+    result: dict[str, Any] = {}
+    current_section = ""
+    for line in raw.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"^\[([^\]]+)\]$", line)
+        if m:
+            current_section = m.group(1).strip()
+            continue
+        m = re.match(r'^(\w+)\s*=\s*"([^"]*)"$', line)
+        if not m:
+            m = re.match(r"^(\w+)\s*=\s*(\S+)$", line)
+        if m:
+            key, val = m.group(1), m.group(2)
+            parts = current_section.split(".") if current_section else []
+            node = result
+            for p in parts:
+                node = node.setdefault(p, {})
+            node[key] = val
+    return result if result else None
+
+
 # ==================== 配置 ====================
 
 # hyper-ai API Gateway（需 Bearer 认证）
 HPC_API_URL = "https://hyper-ai.hellorobotaxi.top"
 HPC_API_HEADERS = {
-    "Authorization": f"Bearer {_load_token()}",
+    "Authorization": _load_token(),
     "x-user-id": "hpc-diagnosis-api",
     "x-platform": "hyper-ai",
     "x-scopes": "platform:admin",
@@ -252,8 +291,8 @@ def get_resource_info(namespace: str, cluster: str, job_name: str) -> dict[str, 
         "created_at": metadata.get("creationTimestamp", ""),
         "vcjob_name": vcjob_name,
         "pod_pattern": pod_pattern,
-        "pods": pods[:20],
-        "pod_names": pod_names[:20],
+        "pods": pods,
+        "pod_names": pod_names,
         "node_names": node_names,
         "conditions": status.get("conditions", []),
         "pod_stats": status.get("podStats", {}),
@@ -288,7 +327,13 @@ def query_loki(expr: str, start_ms: int, end_ms: int, max_lines: int,
 
 
 def parse_loki_response(response: dict) -> list[dict]:
-    """解析 Loki 响应为日志条目列表"""
+    """解析 Loki 响应为日志条目列表
+
+    Grafana /api/ds/query 返回的 data frame 中，流标签有两种存放方式：
+      1. 新版：独立的 name="labels" 列，values 是每行的 label dict
+      2. 旧版：field schema 上的 field["labels"] 属性（所有行共享）
+    两种都兼容。
+    """
     logs = []
     try:
         frames = response.get("results", {}).get("A", {}).get("frames", [])
@@ -301,24 +346,28 @@ def parse_loki_response(response: dict) -> list[dict]:
             if not fields or not values:
                 continue
 
-            time_idx = line_idx = -1
+            time_idx = line_idx = labels_idx = -1
             for i, field in enumerate(fields):
                 name = field.get("name", "").lower()
                 if name in ("time", "timestamp", "tsns"):
                     time_idx = i
                 elif name in ("line", "message", "log"):
                     line_idx = i
+                elif name == "labels" and field.get("type") == "other":
+                    labels_idx = i
 
             if time_idx == -1 or line_idx == -1:
                 continue
 
             timestamps = values[time_idx] if time_idx < len(values) else []
             lines = values[line_idx] if line_idx < len(values) else []
+            labels_col = values[labels_idx] if labels_idx != -1 and labels_idx < len(values) else []
 
-            labels = {}
+            # 旧版 fallback：field schema 上的 labels
+            schema_labels: dict = {}
             for field in fields:
                 if field.get("labels"):
-                    labels = field["labels"]
+                    schema_labels = field["labels"]
                     break
 
             for i in range(min(len(timestamps), len(lines))):
@@ -326,6 +375,9 @@ def parse_loki_response(response: dict) -> list[dict]:
                 line = lines[i]
                 if not line:
                     continue
+
+                # 优先用 labels 列（每行独立），fallback 到 schema labels
+                row_labels = labels_col[i] if i < len(labels_col) and isinstance(labels_col[i], dict) else schema_labels
 
                 if isinstance(ts, (int, float)):
                     ts_ms = ts / 1e6 if ts > 1e15 else ts
@@ -340,8 +392,8 @@ def parse_loki_response(response: dict) -> list[dict]:
 
                 logs.append({
                     "timestamp": datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc).isoformat(),
-                    "pod": labels.get("pod", "unknown"),
-                    "container": labels.get("container", "main"),
+                    "pod": row_labels.get("pod", "unknown"),
+                    "container": row_labels.get("container", "main"),
                     "message": str(line)[:3000],
                 })
     except Exception as e:
